@@ -82,9 +82,6 @@ const Navbar = () => {
                 <Link to="/select-role">
                   <Button variant="ghost" size="sm">Login</Button>
                 </Link>
-                <Link to="/admin/login">
-                  <Button variant="ghost" size="sm" className="text-slate-900">Admin</Button>
-                </Link>
                 <Link to="/register">
                   <Button size="sm">Sign Up</Button>
                 </Link>

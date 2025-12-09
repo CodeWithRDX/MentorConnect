@@ -36,13 +36,29 @@ const RoleSelection = () => {
         'Earn recognition',
       ],
     },
+    {
+      id: 'admin',
+      title: "I'm an Admin",
+      description: 'Manage and oversee the platform',
+      icon: <Shield className="h-12 w-12" />,
+      color: 'from-green-500 to-green-600',
+      details: [
+        'Oversee platform operations',
+        'Manage user roles and permissions',
+        'Ensure platform security',
+        'Access detailed analytics',
+      ],
+    },
   ];
 
   const handleRoleSelect = (roleId) => {
     setSelectedRole(roleId);
-    // Redirect to login after selecting role
+
+    // Redirect to different login pages based on the role
+    const targetPage = roleId === 'admin' ? '/admin/login' : '/login';
+
     setTimeout(() => {
-      navigate('/login', { state: { selectedRole: roleId } });
+      navigate(targetPage, { state: { selectedRole: roleId } });
     }, 500);
   };
 
