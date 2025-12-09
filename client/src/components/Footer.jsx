@@ -1,0 +1,77 @@
+import { Link } from 'react-router-dom';
+import { Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+
+const Footer = () => {
+  return (
+    <footer className="bg-neutral-900 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h3 className="text-xl font-bold mb-4">MentorConnect</h3>
+            <p className="text-neutral-400 text-sm">
+              Connecting mentors and mentees for professional growth and success.
+            </p>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold mb-4">Quick Links</h4>
+            <ul className="space-y-2 text-sm text-neutral-400">
+              <li>
+                <Link to="/" className="hover:text-white transition">Home</Link>
+              </li>
+              <li>
+                <Link to="/mentors" className="hover:text-white transition">Find Mentors</Link>
+              </li>
+              <li>
+                <Link to="/register" className="hover:text-white transition">Sign Up</Link>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold mb-4">Resources</h4>
+            <ul className="space-y-2 text-sm text-neutral-400">
+              <li>
+                <Link to="#" className="hover:text-white transition">About Us</Link>
+              </li>
+              <li>
+                <Link to="#" className="hover:text-white transition">Contact</Link>
+              </li>
+              <li>
+                <Link to="#" className="hover:text-white transition">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link to="#" className="hover:text-white transition">Terms of Service</Link>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold mb-4">Follow Us</h4>
+            <div className="flex space-x-4">
+              <a href="#" className="text-neutral-400 hover:text-white transition">
+                <Facebook className="h-5 w-5" />
+              </a>
+              <a href="#" className="text-neutral-400 hover:text-white transition">
+                <Twitter className="h-5 w-5" />
+              </a>
+              <a href="#" className="text-neutral-400 hover:text-white transition">
+                <Instagram className="h-5 w-5" />
+              </a>
+              <a href="#" className="text-neutral-400 hover:text-white transition">
+                <Linkedin className="h-5 w-5" />
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        <div className="border-t border-neutral-800 mt-8 pt-8 text-center text-sm text-neutral-400">
+          <p>&copy; {new Date().getFullYear()} MentorConnect. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+
