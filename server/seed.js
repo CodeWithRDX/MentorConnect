@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 import User from './models/User.js';
 import Mentor from './models/Mentor.js';
 import Category from './models/Category.js';
@@ -31,20 +32,23 @@ const seedData = async () => {
       { name: 'Career Coaching', description: 'Career development and guidance' },
     ]);
 
-    const defaultPassword = 'admin123';
+    // Hash password
+    const hashedPassword = await bcrypt.hash('admin123', 10);
 
-    // Create admin user (let schema pre-save hash the password once)
+    // Create admin user
     const admin = await User.create({
       name: 'Admin User',
       email: 'admin@mentorconnect.com',
-      password: defaultPassword,
+      password: 'admin123',
       role: 'admin',
       isEmailVerified: true,
     });
 
-    // Create mentor users via create to ensure hashing middleware runs
-    const mentorUsers = await Promise.all([
-      User.create({
+    await admin.save();
+
+    // Create mentor users
+    const mentorUsers = await User.insertMany([
+      {
         name: 'John Smith',
         email: 'john@example.com',
         password: defaultPassword,
@@ -132,7 +136,7 @@ const seedData = async () => {
     const pendingMentorUser = await User.create({
       name: 'Pending Mentor',
       email: 'pending.mentor@example.com',
-      password: defaultPassword,
+      password: hashedPassword,
       role: 'mentor',
       isEmailVerified: true,
     });

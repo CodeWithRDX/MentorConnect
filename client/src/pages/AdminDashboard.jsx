@@ -37,12 +37,12 @@ const AdminDashboard = () => {
     try {
       const [statsRes, mentorsRes, issuesRes] = await Promise.all([
         api.get('/admin/stats'),
-        api.get('/admin/all-mentors'),
+        api.get('/admin/all-mentors?status=pending'),
         api.get('/issues'),
       ]);
 
       setStats(statsRes.data.data || stats);
-      setAllMentors(mentorsRes.data.data || []);
+      setPendingMentors(mentorsRes.data.data || []);
       setIssues(issuesRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -76,65 +76,15 @@ const AdminDashboard = () => {
     }
   };
 
-  // Issue actions
-  const handleAddRemarks = async () => {
-    if (!remarksModal.remarks.trim()) {
-      toast('Please enter remarks', 'error');
-      return;
-    }
-    try {
-      await api.put(`/issues/${remarksModal.issueId}/remarks`, { remarks: remarksModal.remarks });
-      toast('Remarks added successfully', 'success');
-      setRemarksModal({ open: false, issueId: null, remarks: '' });
-      fetchData();
-    } catch (error) {
-      console.error('Error adding remarks:', error);
-      toast(error.response?.data?.message || 'Failed to add remarks', 'error');
-    }
-  };
-
-  const handleMarkInProgress = async (issueId) => {
-    try {
-      await api.put(`/issues/${issueId}/progress`);
-      toast('Issue marked as in progress', 'success');
-      fetchData();
-    } catch (error) {
-      console.error('Error updating issue:', error);
-      toast(error.response?.data?.message || 'Failed to update issue', 'error');
-    }
-  };
-
-  const handleCloseIssue = async (issueId) => {
-    try {
-      await api.put(`/issues/${issueId}/close`);
-      toast('Issue closed successfully', 'success');
-      fetchData();
-    } catch (error) {
-      console.error('Error closing issue:', error);
-      toast(error.response?.data?.message || 'Failed to close issue', 'error');
-    }
-  };
-
   // Filter mentors based on search term and status
-  const filteredMentors = allMentors.filter((mentor) => {
-    // Filter by status
-    if (filterStatus === 'Pending' && mentor.isApproved !== false) return false;
-    if (filterStatus === 'Approved' && mentor.isApproved !== true) return false;
-    // Note: Rejected mentors are deleted from the database, so they won't appear in the list
-    
-    // Filter by search term
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = 
-        mentor.user?.name?.toLowerCase().includes(searchLower) ||
-        mentor.user?.email?.toLowerCase().includes(searchLower) ||
-        mentor.skills?.some((skill) => skill.toLowerCase().includes(searchLower)) ||
-        mentor.categories?.some((cat) => cat.toLowerCase().includes(searchLower)) ||
-        mentor.bio?.toLowerCase().includes(searchLower);
-      if (!matchesSearch) return false;
-    }
-    
-    return true;
+  const filteredMentors = pendingMentors.filter((mentor) => {
+    if (!searchTerm) return true;
+    return (
+      mentor.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      mentor.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      mentor.skills?.some((e) => e.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      mentor.categories?.some((e) => e.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
   });
 
   if (loading) {
@@ -195,10 +145,10 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-neutral-600 mb-1">Total Users</p>
-                    <p className="text-3xl font-bold">{stats.totalUsers || 0}</p>
+                    <p className="text-sm text-neutral-600 mb-1">Open Issues</p>
+                    <p className="text-3xl font-bold">3</p>
                   </div>
-                  <Users className="h-10 w-10 text-purple-600" />
+                  <AlertCircle className="h-10 w-10 text-yellow-600" />
                 </div>
               </CardContent>
             </Card>
@@ -233,68 +183,9 @@ const AdminDashboard = () => {
 
           {/* Tab Content */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Platform Statistics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-neutral-600">Total Users</p>
-                      <p className="text-2xl font-bold">{stats.totalUsers || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600">Approved Mentors</p>
-                      <p className="text-2xl font-bold">{stats.approvedMentors || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600">Pending Mentors</p>
-                      <p className="text-2xl font-bold">{stats.pendingMentors || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600">Total Bookings</p>
-                      <p className="text-2xl font-bold">{stats.totalBookings || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600">Open Issues</p>
-                      <p className="text-2xl font-bold">{stats.openIssues || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600">Total Categories</p>
-                      <p className="text-2xl font-bold">{stats.totalCategories || 0}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button 
-                      onClick={() => setActiveTab('requests')}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      Review Mentor Requests
-                    </Button>
-                    <Button 
-                      onClick={() => setActiveTab('issues')}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      View Platform Issues
-                    </Button>
-                    <Button 
-                      onClick={fetchData}
-                      className="w-full bg-gray-600 hover:bg-gray-700 text-white"
-                    >
-                      Refresh Data
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            <div>
+              <h2 className="text-xl font-bold mb-4">Overview</h2>
+              {/* Add overview content here */}
             </div>
           )}
 
@@ -316,7 +207,7 @@ const AdminDashboard = () => {
                     />
                   </div>
                   <div className="flex gap-2">
-                    {['All', 'Pending', 'Approved'].map((status) => (
+                    {['All', 'Pending', 'Approved', 'Rejected'].map((status) => (
                       <button
                         key={status}
                         onClick={() => setFilterStatus(status)}
@@ -348,35 +239,21 @@ const AdminDashboard = () => {
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <p className="font-bold text-lg">{mentor.user?.name}</p>
-                              <span className={`px-3 py-1 text-sm rounded-full ${
-                                mentor.isApproved 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {mentor.isApproved ? 'Approved' : 'Pending'}
+                              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
+                                Pending
                               </span>
                             </div>
-                            <p className="text-neutral-500 text-sm mb-3">{mentor.user?.email}</p>
+                            <p className="text-neutral-600 mb-3">{mentor.title}</p>
+                            <p className="text-neutral-500 text-sm mb-3">{mentor.email || mentor.user?.email}</p>
                             
-                            {/* Skills */}
+                            {/* Skills/Expertise */}
                             <div className="flex flex-wrap gap-2 mb-3">
-                              {(mentor.skills || []).slice(0, 5).map((skill, idx) => (
+                              {(mentor.expertise || []).slice(0, 3).map((skill, idx) => (
                                 <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
                                   {skill}
                                 </span>
                               ))}
                             </div>
-                            
-                            {/* Categories */}
-                            {mentor.categories && mentor.categories.length > 0 && (
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {mentor.categories.map((cat, idx) => (
-                                  <span key={idx} className="px-3 py-1 bg-purple-50 text-purple-600 text-sm rounded-full">
-                                    {cat}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
 
                             {/* Bio */}
                             <p className="text-sm text-neutral-600">
@@ -385,25 +262,23 @@ const AdminDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Action Buttons - Only show for pending mentors */}
-                        {!mentor.isApproved && (
-                          <div className="flex gap-3 pt-4 border-t">
-                            <Button
-                              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => handleApproveMentor(mentor._id)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Approve Mentor
-                            </Button>
-                            <Button
-                              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                              onClick={() => handleRejectMentor(mentor._id)}
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Reject Request
-                            </Button>
-                          </div>
-                        )}
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4 border-t">
+                          <Button
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleApproveMentor(mentor._id)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approve Mentor
+                          </Button>
+                          <Button
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleRejectMentor(mentor._id)}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject Request
+                          </Button>
+                        </div>
                       </motion.div>
                     ))
                   )}
@@ -413,96 +288,10 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'issues' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Platform Issues</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {issues.length === 0 ? (
-                    <p className="text-center text-neutral-600 py-8">No issues found</p>
-                  ) : (
-                    issues.map((issue) => (
-                      <motion.div
-                        key={issue._id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="p-6 border rounded-lg hover:shadow-md transition"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-bold text-lg">{issue.title}</h3>
-                              <span className={`px-3 py-1 text-sm rounded-full ${
-                                issue.status === 'open' 
-                                  ? 'bg-red-100 text-red-800'
-                                  : issue.status === 'in_progress'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-green-100 text-green-800'
-                              }`}>
-                                {issue.status?.replace('_', ' ').toUpperCase()}
-                              </span>
-                              <span className={`px-3 py-1 text-sm rounded-full ${
-                                issue.priority === 'high'
-                                  ? 'bg-red-100 text-red-800'
-                                  : issue.priority === 'medium'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {issue.priority?.toUpperCase()}
-                              </span>
-                            </div>
-                            <p className="text-neutral-600 mb-2">{issue.description}</p>
-                            {issue.remarks && (
-                              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-sm font-semibold text-blue-900 mb-1">Admin Remarks:</p>
-                                <p className="text-sm text-blue-800">{issue.remarks}</p>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-4 text-sm text-neutral-500 mt-2">
-                              <span>Type: {issue.type}</span>
-                              <span>Role: {issue.role}</span>
-                              {issue.createdAt && (
-                                <span>Created: {new Date(issue.createdAt).toLocaleDateString()}</span>
-                              )}
-                              {issue.closedAt && (
-                                <span>Closed: {new Date(issue.closedAt).toLocaleDateString()}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        {issue.status !== 'closed' && (
-                          <div className="flex gap-3 pt-4 border-t mt-4">
-                            <Button
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => setRemarksModal({ open: true, issueId: issue._id, remarks: issue.remarks || '' })}
-                            >
-                              Add Remarks
-                            </Button>
-                            {issue.status === 'open' && (
-                              <Button
-                                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
-                                onClick={() => handleMarkInProgress(issue._id)}
-                              >
-                                Mark In Progress
-                              </Button>
-                            )}
-                            <Button
-                              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => handleCloseIssue(issue._id)}
-                            >
-                              Close Issue
-                            </Button>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div>
+              <h2 className="text-xl font-bold mb-4">Issues</h2>
+              {/* Issues content */}
+            </div>
           )}
         </div>
       </div>

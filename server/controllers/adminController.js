@@ -3,6 +3,7 @@ import Mentor from '../models/Mentor.js';
 import Category from '../models/Category.js';
 import Booking from '../models/Booking.js';
 import Issue from '../models/Issue.js';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 /* =========================================================
@@ -16,7 +17,6 @@ export const adminLogin = async (req, res) => {
     const { email, password } = req.body;
 
     // Find admin user and explicitly select password
-    // Need password field for comparison (schema excludes by default)
     const user = await User.findOne({ email }).select('+password');
     console.log("🔍 ADMIN USER FOUND:", user);
 
@@ -38,8 +38,7 @@ export const adminLogin = async (req, res) => {
     }
 
     // Verify password
-    // Reuse shared password compare helper to avoid drift
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     console.log("🔑 PASSWORD MATCH:", isMatch);
 
     if (!isMatch) {
@@ -143,8 +142,6 @@ export const approveMentor = async (req, res, next) => {
 };
 
 /* =========================================================
-   REJECT MENTOR
-========================================================= */
 export const rejectMentor = async (req, res, next) => {
   try {
     const mentor = await Mentor.findById(req.params.id);
