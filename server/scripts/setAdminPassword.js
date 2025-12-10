@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import connectDB from '../config/database.js';
 import User from '../models/User.js';
-import bcrypt from 'bcryptjs';
 
 // Ensure we load the server .env (script may be run from project root)
 const envPath = process.cwd().endsWith('/server')
@@ -33,9 +32,8 @@ const run = async () => {
       user.role = 'admin';
     }
 
-    // Hash the new password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // Assign plain password; schema pre-save hook will hash once
+    user.password = newPassword;
 
     await user.save();
 

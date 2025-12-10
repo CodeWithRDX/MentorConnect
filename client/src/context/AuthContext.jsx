@@ -23,13 +23,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // ----------------------------
+  // CHECK AUTH
+  // ----------------------------
   const checkAuth = async () => {
     try {
       const response = await api.get('/auth/me');
-      setUser(response.data.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
+      const loggedUser = response.data.data.user;
+      setUser(loggedUser);
+      localStorage.setItem('user', JSON.stringify(loggedUser));
     } catch (error) {
-      // Clear auth data silently - don't redirect
       setUser(null);
       localStorage.removeItem('user');
     } finally {
@@ -37,12 +40,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ----------------------------
+  // USER LOGIN
+  // ----------------------------
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
+
       const userData = response.data.data.user || response.data.data;
+
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
+
       return response.data;
     } catch (error) {
       console.error('Login error:', error);
@@ -50,11 +59,41 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ----------------------------
+  // ADMIN LOGIN (NEW)
+  // ----------------------------
+  const adminLogin = async (email, password) => {
+    try {
+      const response = await api.post('/admin/login', { email, password });
+
+      const userData = response.data.user;
+
+      // save token if returned
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      return response;
+    } catch (error) {
+      console.error("Admin login error:", error);
+      throw error;
+    }
+  };
+
+  // ----------------------------
+  // REGISTER
+  // ----------------------------
   const register = async (userData) => {
     const response = await api.post('/auth/register', userData);
     return response.data;
   };
 
+  // ----------------------------
+  // LOGOUT
+  // ----------------------------
   const logout = async () => {
     try {
       await api.post('/auth/logout');
@@ -63,14 +102,17 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
       window.location.href = '/';
     }
   };
 
+  // Context value
   const value = {
     user,
     loading,
     login,
+    adminLogin,
     register,
     logout,
     checkAuth,
@@ -78,4 +120,3 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-

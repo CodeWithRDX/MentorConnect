@@ -6,9 +6,14 @@ import User from '../models/User.js';
 // @access  Public
 export const getMentors = async (req, res, next) => {
   try {
-    const { category, skill, rating, search, page = 1, limit = 10 } = req.query;
+    const { category, skill, rating, search, page = 1, limit = 10, isApproved } = req.query;
 
-    const query = { isApproved: true };
+    const query = {};
+    if (isApproved === undefined) {
+      query.isApproved = true;
+    } else {
+      query.isApproved = isApproved === 'true';
+    }
 
     if (category) {
       query.categories = { $in: [category] };

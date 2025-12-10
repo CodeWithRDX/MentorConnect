@@ -3,19 +3,23 @@ import dotenv from 'dotenv';
 import User from './models/User.js';
 import Mentor from './models/Mentor.js';
 import Category from './models/Category.js';
-import bcrypt from 'bcryptjs';
+import Booking from './models/Booking.js';
+import Issue from './models/Issue.js';
 
 dotenv.config();
 
 const seedData = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB');
+    const envUri = process.env.MONGODB_URI?.trim() || 'mongodb://localhost:27017/mentorconnect';
+    await mongoose.connect(envUri);
+    console.log(`✅ Connected to MongoDB @ ${envUri}`);
 
     // Clear existing data
     await User.deleteMany({});
     await Mentor.deleteMany({});
     await Category.deleteMany({});
+    await Booking.deleteMany({});
+    await Issue.deleteMany({});
 
     // Create categories
     const categories = await Category.insertMany([
@@ -27,39 +31,40 @@ const seedData = async () => {
       { name: 'Career Coaching', description: 'Career development and guidance' },
     ]);
 
-    // Create admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const defaultPassword = 'admin123';
+
+    // Create admin user (let schema pre-save hash the password once)
     const admin = await User.create({
       name: 'Admin User',
       email: 'admin@mentorconnect.com',
-      password: hashedPassword,
+      password: defaultPassword,
       role: 'admin',
       isEmailVerified: true,
     });
 
-    // Create mentor users
-    const mentorUsers = await User.insertMany([
-      {
+    // Create mentor users via create to ensure hashing middleware runs
+    const mentorUsers = await Promise.all([
+      User.create({
         name: 'John Smith',
         email: 'john@example.com',
-        password: hashedPassword,
+        password: defaultPassword,
         role: 'mentor',
         isEmailVerified: true,
-      },
-      {
+      }),
+      User.create({
         name: 'Sarah Johnson',
         email: 'sarah@example.com',
-        password: hashedPassword,
+        password: defaultPassword,
         role: 'mentor',
         isEmailVerified: true,
-      },
-      {
+      }),
+      User.create({
         name: 'Michael Chen',
         email: 'michael@example.com',
-        password: hashedPassword,
+        password: defaultPassword,
         role: 'mentor',
         isEmailVerified: true,
-      },
+      }),
     ]);
 
     // Create mentor profiles
@@ -108,32 +113,109 @@ const seedData = async () => {
       },
     ]);
 
-    // Update users with mentor profiles
+    // Link mentor profiles to users
     for (let i = 0; i < mentorUsers.length; i++) {
       mentorUsers[i].mentorProfile = mentors[i]._id;
       await mentorUsers[i].save();
     }
 
-    // Create mentee user
-    await User.create({
+    // Create a mentee user
+    const mentee = await User.create({
       name: 'Emily Rodriguez',
       email: 'emily@example.com',
-      password: hashedPassword,
+      password: defaultPassword,
       role: 'mentee',
       isEmailVerified: true,
     });
 
-    console.log('Seed data created successfully!');
-    console.log('Admin credentials: admin@mentorconnect.com / admin123');
-    console.log('Mentor credentials: john@example.com / admin123');
-    console.log('Mentee credentials: emily@example.com / admin123');
-    
+    // Create a pending mentor user/profile for admin approval demo
+    const pendingMentorUser = await User.create({
+      name: 'Pending Mentor',
+      email: 'pending.mentor@example.com',
+      password: defaultPassword,
+      role: 'mentor',
+      isEmailVerified: true,
+    });
+
+    const pendingMentorProfile = await Mentor.create({
+      user: pendingMentorUser._id,
+      bio: 'Aspiring mentor awaiting approval.',
+      skills: ['Leadership', 'Communication'],
+      categories: ['Career Coaching'],
+      experience: 2,
+      hourlyRate: 40,
+      isApproved: false,
+      languages: ['English'],
+    });
+
+    pendingMentorUser.mentorProfile = pendingMentorProfile._id;
+    await pendingMentorUser.save();
+
+    // Create sample bookings for dashboards
+    const now = new Date();
+    const future = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const past = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+    await Booking.insertMany([
+      {
+        mentee: mentee._id,
+        mentor: mentors[0]._id,
+        sessionDate: future,
+        sessionTime: { start: '10:00', end: '11:00' },
+        duration: 60,
+        amount: 75,
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        meetingLink: 'https://meet.example.com/future',
+      },
+      {
+        mentee: mentee._id,
+        mentor: mentors[1]._id,
+        sessionDate: past,
+        sessionTime: { start: '14:00', end: '15:00' },
+        duration: 60,
+        amount: 90,
+        status: 'completed',
+        paymentStatus: 'paid',
+        meetingLink: 'https://meet.example.com/past',
+        review: { rating: 5, comment: 'Great session', createdAt: past },
+      },
+    ]);
+
+    // Seed a couple of issues for admin dashboard
+    await Issue.insertMany([
+      {
+        user: mentee._id,
+        role: 'mentee',
+        title: 'Payment not processed',
+        description: 'Booked a session but payment still pending.',
+        type: 'payment',
+        priority: 'high',
+        status: 'open',
+      },
+      {
+        user: mentorUsers[0]._id,
+        role: 'mentor',
+        title: 'Video call link broken',
+        description: 'Unable to access the meeting link for my session.',
+        type: 'technical',
+        priority: 'medium',
+        status: 'in_progress',
+      },
+    ]);
+
+    console.log('🎉 Seed data created successfully!');
+    console.log('Admin login: admin@mentorconnect.com / admin123');
+    console.log('Mentor login: john@example.com / admin123');
+    console.log('Mentee login: emily@example.com / admin123');
+    console.log('Pending mentor: pending.mentor@example.com / admin123');
+    console.log('Sample bookings and issues created for dashboard data.');
+
     process.exit(0);
   } catch (error) {
-    console.error('Error seeding data:', error);
+    console.error('❌ Error seeding data:', error);
     process.exit(1);
   }
 };
 
 seedData();
-
