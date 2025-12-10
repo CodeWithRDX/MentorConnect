@@ -143,6 +143,33 @@ export const approveMentor = async (req, res, next) => {
 };
 
 /* =========================================================
+   REJECT MENTOR
+========================================================= */
+export const rejectMentor = async (req, res, next) => {
+  try {
+    const mentor = await Mentor.findById(req.params.id);
+
+    if (!mentor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mentor not found',
+      });
+    }
+
+    // Detach mentor profile from the user before removing
+    await User.findByIdAndUpdate(mentor.user, { $unset: { mentorProfile: '' } });
+    await mentor.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Mentor request rejected and removed',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================================================
    DELETE USER
 ========================================================= */
 export const deleteUser = async (req, res, next) => {
@@ -312,8 +339,14 @@ export const getAllMentors = async (req, res, next) => {
 export const getAllBookings = async (req, res, next) => {
   try {
     const bookings = await Booking.find()
-      .populate('menteeId', 'name email')
-      .populate('mentorId', 'name email');
+      .populate('mentee', 'name email')
+      .populate({
+        path: 'mentor',
+        populate: {
+          path: 'user',
+          select: 'name email'
+        }
+      });
 
     res.status(200).json({
       success: true,

@@ -47,4 +47,59 @@ export const updateIssue = async (req, res, next) => {
   }
 };
 
+// Add remarks to issue (admin only)
+export const addRemarks = async (req, res, next) => {
+  try {
+    const { remarks } = req.body;
+    if (!remarks) {
+      return res.status(400).json({ success: false, message: 'Remarks are required' });
+    }
+    const issue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      { remarks },
+      { new: true, runValidators: true },
+    );
+    if (!issue) {
+      return res.status(404).json({ success: false, message: 'Issue not found' });
+    }
+    res.status(200).json({ success: true, data: issue });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Mark issue as in progress (admin only)
+export const markInProgress = async (req, res, next) => {
+  try {
+    const issue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      { status: 'in_progress' },
+      { new: true, runValidators: true },
+    );
+    if (!issue) {
+      return res.status(404).json({ success: false, message: 'Issue not found' });
+    }
+    res.status(200).json({ success: true, data: issue });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Close issue (admin only)
+export const closeIssue = async (req, res, next) => {
+  try {
+    const issue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      { status: 'closed', closedAt: new Date() },
+      { new: true, runValidators: true },
+    );
+    if (!issue) {
+      return res.status(404).json({ success: false, message: 'Issue not found' });
+    }
+    res.status(200).json({ success: true, data: issue });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

@@ -7,13 +7,11 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { toast } from '../components/ui/toaster';
 import { motion } from 'framer-motion';
-import GetStartedModal from '../components/GetStartedModal';
 import { ArrowRight } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -38,9 +36,10 @@ const Login = () => {
       } else if (userData.role === 'mentor') {
         navigate('/mentor/dashboard');
       } else {
-        // Show role choice modal for mentees
-        setShowRoleModal(true);
+        // Redirect mentees directly to their dashboard
+        navigate('/mentee/dashboard');
       }
+      setLoading(false);
     } catch (error) {
       console.error('Login error:', error);
       toast(error.response?.data?.message || 'Login failed', 'error');
@@ -212,9 +211,6 @@ const Login = () => {
       </div>
 
       <Footer />
-      
-      {/* Role Selection Modal */}
-      <GetStartedModal isOpen={showRoleModal} onClose={() => setShowRoleModal(false)} />
     </div>
   );
 };

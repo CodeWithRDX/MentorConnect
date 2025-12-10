@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getUsers,
   approveMentor,
+  rejectMentor,
   deleteUser,
   getCategories,
   createCategory,
@@ -38,6 +39,7 @@ router.get('/all-users', getUsers);
 router.get('/all-mentors', getAllMentors);
 router.get('/all-bookings', getAllBookings);
 router.put('/mentor/approve/:id', approveMentor);
+router.put('/mentor/reject/:id', rejectMentor);
 router.delete('/user/:id', deleteUser);
 router.get('/categories', getCategories);
 router.post('/categories', createCategory);

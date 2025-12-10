@@ -12,14 +12,9 @@ const Home = () => {
   const { user } = useAuth();
   const [showGetStartedModal, setShowGetStartedModal] = useState(false);
 
-  // Show modal on first login (check localStorage to avoid showing on every page load)
-  useEffect(() => {
-    const hasShownModal = localStorage.getItem('mentorconnect_shown_modal');
-    if (user && !hasShownModal) {
-      setShowGetStartedModal(true);
-      localStorage.setItem('mentorconnect_shown_modal', 'true');
-    }
-  }, [user]);
+  // Don't show modal automatically for logged-in users - they already have a role
+  // Modal should only be shown when user clicks "Get Started" button
+  // If user is logged in and has a role, they shouldn't see this modal
 
   const features = [
     {

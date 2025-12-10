@@ -40,19 +40,66 @@ const MentorDetail = () => {
     }
   };
 
+  // Calculate end time based on start time and duration
+  const calculateEndTime = (startTime, durationMinutes) => {
+    if (!startTime) return '';
+    
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDate = new Date();
+    startDate.setHours(hours, minutes, 0, 0);
+    
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    const endHours = endDate.getHours().toString().padStart(2, '0');
+    const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
+    
+    return `${endHours}:${endMinutes}`;
+  };
+
   const handleBooking = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
 
+    // Validate required fields
+    if (!bookingData.sessionDate) {
+      toast('Please select a date', 'error');
+      return;
+    }
+
+    if (!bookingData.sessionTime.start) {
+      toast('Please select a start time', 'error');
+      return;
+    }
+
+    // Calculate end time if not already set
+    const endTime = calculateEndTime(bookingData.sessionTime.start, bookingData.duration);
+    
+    if (!endTime) {
+      toast('Please select a valid start time', 'error');
+      return;
+    }
+
     try {
       await api.post('/bookings', {
         mentor: mentor._id,
-        ...bookingData,
+        sessionDate: bookingData.sessionDate,
+        sessionTime: {
+          start: bookingData.sessionTime.start,
+          end: endTime,
+        },
+        duration: bookingData.duration,
+        notes: bookingData.notes,
       });
       toast('Booking created successfully!', 'success');
       setShowBookingModal(false);
+      // Reset booking data
+      setBookingData({
+        sessionDate: '',
+        sessionTime: { start: '', end: '' },
+        duration: 60,
+        notes: '',
+      });
     } catch (error) {
       toast(error.response?.data?.message || 'Failed to create booking', 'error');
     }
@@ -174,6 +221,7 @@ const MentorDetail = () => {
                       onChange={(e) => setBookingData({ ...bookingData, sessionDate: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
                       min={new Date().toISOString().split('T')[0]}
+                      required
                     />
                   </div>
                   <div>
@@ -181,11 +229,16 @@ const MentorDetail = () => {
                     <input
                       type="time"
                       value={bookingData.sessionTime.start}
-                      onChange={(e) => setBookingData({
-                        ...bookingData,
-                        sessionTime: { ...bookingData.sessionTime, start: e.target.value }
-                      })}
+                      onChange={(e) => {
+                        const startTime = e.target.value;
+                        const endTime = calculateEndTime(startTime, bookingData.duration);
+                        setBookingData({
+                          ...bookingData,
+                          sessionTime: { start: startTime, end: endTime }
+                        });
+                      }}
                       className="w-full px-3 py-2 border rounded-md"
+                      required
                     />
                   </div>
                   <div>
@@ -193,12 +246,26 @@ const MentorDetail = () => {
                     <input
                       type="number"
                       value={bookingData.duration}
-                      onChange={(e) => setBookingData({ ...bookingData, duration: parseInt(e.target.value) })}
+                      onChange={(e) => {
+                        const duration = parseInt(e.target.value) || 60;
+                        const endTime = calculateEndTime(bookingData.sessionTime.start, duration);
+                        setBookingData({
+                          ...bookingData,
+                          duration,
+                          sessionTime: { ...bookingData.sessionTime, end: endTime }
+                        });
+                      }}
                       className="w-full px-3 py-2 border rounded-md"
                       min="30"
                       step="30"
+                      required
                     />
                   </div>
+                  {bookingData.sessionTime.start && bookingData.sessionTime.end && (
+                    <div className="text-sm text-neutral-600">
+                      Session ends at: <span className="font-semibold">{bookingData.sessionTime.end}</span>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium mb-1">Notes (optional)</label>
                     <textarea
