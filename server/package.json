@@ -5,7 +5,7 @@
   "description": "Backend server for Virtual Mentorship Platform",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "nodemon --legacy-watch server.js",
     "start": "node server.js",
     "seed": "node seed.js"
   },

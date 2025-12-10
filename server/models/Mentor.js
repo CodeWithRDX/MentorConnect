@@ -75,8 +75,9 @@ const mentorSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index for search
-mentorSchema.index({ skills: 1, categories: 1, rating: -1 });
+// SINGLE-FIELD INDEXES (safe for arrays)
+mentorSchema.index({ skills: 1 });
+mentorSchema.index({ categories: 1 });
+mentorSchema.index({ rating: -1 });
 
 export default mongoose.model('Mentor', mentorSchema);
-

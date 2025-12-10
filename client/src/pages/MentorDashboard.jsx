@@ -22,11 +22,18 @@ const MentorDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  const mentorProfile = user?.mentorProfile;
+  const isApproved = mentorProfile?.isApproved;
+  const isPending = mentorProfile && !mentorProfile.isApproved;
+
   useEffect(() => {
-    if (user?.mentorProfile) {
+    // If user has a mentor profile, load bookings; otherwise stop the spinner
+    if (isApproved) {
       fetchBookings();
+    } else {
+      setLoading(false);
     }
-  }, [user]);
+  }, [isApproved]);
 
   const fetchBookings = async () => {
     try {
@@ -63,7 +70,8 @@ const MentorDashboard = () => {
     );
   }
 
-  if (!user?.mentorProfile) {
+  // New mentor (no profile yet)
+  if (!mentorProfile) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -77,6 +85,32 @@ const MentorDashboard = () => {
               <Link to="/mentor/apply">
                 <Button>Apply Now</Button>
               </Link>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Pending approval view
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>Application Pending</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>Your mentor application is pending admin approval. We’ll notify you once reviewed.</p>
+              <div className="flex gap-3">
+                <Link to="/mentor/apply">
+                  <Button variant="outline">Edit Application</Button>
+                </Link>
+                <Button variant="default">Raise Request</Button>
+              </div>
             </CardContent>
           </Card>
         </div>

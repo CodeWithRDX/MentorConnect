@@ -2,13 +2,102 @@ import User from '../models/User.js';
 import Mentor from '../models/Mentor.js';
 import Category from '../models/Category.js';
 import Booking from '../models/Booking.js';
+import Issue from '../models/Issue.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-// @desc    Get all users
-// @route   GET /api/admin/users
-// @access  Private/Admin
+/* =========================================================
+   ADMIN LOGIN (POST /api/admin/login)
+   PUBLIC ROUTE
+========================================================= */
+export const adminLogin = async (req, res) => {
+  try {
+    console.log("🔥 ADMIN LOGIN BODY:", req.body);
+
+    const { email, password } = req.body;
+
+    // Find admin user and explicitly select password
+    const user = await User.findOne({ email }).select('+password');
+    console.log("🔍 ADMIN USER FOUND:", user);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Check if admin
+    console.log("👀 USER ROLE:", user.role);
+
+    if (user.role !== "admin") {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Admin access only",
+      });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log("🔑 PASSWORD MATCH:", isMatch);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    console.log("✅ LOGIN SUCCESS — Generating JWT");
+
+    // Create token
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || "7d" }
+    );
+
+    // Mirror user login behavior: set httpOnly cookie so admin routes work with protect middleware
+    const cookieOptions = {
+      expires: new Date(Date.now() + (process.env.COOKIE_EXPIRE || 7) * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    res.cookie("token", token, cookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin logged in successfully",
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    });
+
+  } catch (error) {
+    console.log("💥 ADMIN LOGIN ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+
+/* =========================================================
+   GET ALL USERS
+========================================================= */
 export const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select('-password').populate('mentorProfile');
+    const users = await User.find()
+      .select('-password')
+      .populate('mentorProfile');
 
     res.status(200).json({
       success: true,
@@ -20,9 +109,9 @@ export const getUsers = async (req, res, next) => {
   }
 };
 
-// @desc    Approve mentor
-// @route   PUT /api/admin/mentor/approve/:id
-// @access  Private/Admin
+/* =========================================================
+   APPROVE MENTOR
+========================================================= */
 export const approveMentor = async (req, res, next) => {
   try {
     const mentor = await Mentor.findById(req.params.id);
@@ -39,6 +128,9 @@ export const approveMentor = async (req, res, next) => {
     mentor.approvedBy = req.user.id;
     await mentor.save();
 
+    // Attach approved mentor to user profile
+    await User.findByIdAndUpdate(mentor.user, { mentorProfile: mentor._id });
+
     res.status(200).json({
       success: true,
       message: 'Mentor approved successfully',
@@ -49,9 +141,9 @@ export const approveMentor = async (req, res, next) => {
   }
 };
 
-// @desc    Delete user
-// @route   DELETE /api/admin/user/:id
-// @access  Private/Admin
+/* =========================================================
+   DELETE USER
+========================================================= */
 export const deleteUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -63,7 +155,6 @@ export const deleteUser = async (req, res, next) => {
       });
     }
 
-    // Delete mentor profile if exists
     if (user.mentorProfile) {
       await Mentor.findByIdAndDelete(user.mentorProfile);
     }
@@ -79,9 +170,9 @@ export const deleteUser = async (req, res, next) => {
   }
 };
 
-// @desc    Get all categories
-// @route   GET /api/admin/categories
-// @access  Private/Admin
+/* =========================================================
+   GET ALL CATEGORIES
+========================================================= */
 export const getCategories = async (req, res, next) => {
   try {
     const categories = await Category.find();
@@ -96,9 +187,9 @@ export const getCategories = async (req, res, next) => {
   }
 };
 
-// @desc    Create category
-// @route   POST /api/admin/categories
-// @access  Private/Admin
+/* =========================================================
+   CREATE CATEGORY
+========================================================= */
 export const createCategory = async (req, res, next) => {
   try {
     const category = await Category.create(req.body);
@@ -112,9 +203,9 @@ export const createCategory = async (req, res, next) => {
   }
 };
 
-// @desc    Update category
-// @route   PUT /api/admin/categories/:id
-// @access  Private/Admin
+/* =========================================================
+   UPDATE CATEGORY
+========================================================= */
 export const updateCategory = async (req, res, next) => {
   try {
     const category = await Category.findByIdAndUpdate(
@@ -139,9 +230,9 @@ export const updateCategory = async (req, res, next) => {
   }
 };
 
-// @desc    Delete category
-// @route   DELETE /api/admin/categories/:id
-// @access  Private/Admin
+/* =========================================================
+   DELETE CATEGORY
+========================================================= */
 export const deleteCategory = async (req, res, next) => {
   try {
     const category = await Category.findByIdAndDelete(req.params.id);
@@ -162,9 +253,9 @@ export const deleteCategory = async (req, res, next) => {
   }
 };
 
-// @desc    Get dashboard stats
-// @route   GET /api/admin/stats
-// @access  Private/Admin
+/* =========================================================
+   DASHBOARD STATS
+========================================================= */
 export const getStats = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -172,6 +263,7 @@ export const getStats = async (req, res, next) => {
     const approvedMentors = await Mentor.countDocuments({ isApproved: true });
     const totalBookings = await Booking.countDocuments();
     const totalCategories = await Category.countDocuments();
+    const openIssues = await Issue.countDocuments({ status: { $in: ['open', 'in_progress'] } });
 
     res.status(200).json({
       success: true,
@@ -182,6 +274,7 @@ export const getStats = async (req, res, next) => {
         pendingMentors: totalMentors - approvedMentors,
         totalBookings,
         totalCategories,
+        openIssues,
       },
     });
   } catch (error) {
@@ -189,12 +282,18 @@ export const getStats = async (req, res, next) => {
   }
 };
 
-// @desc    Get all mentors
-// @route   GET /api/admin/all-mentors
-// @access  Private/Admin
+/* =========================================================
+   GET ALL MENTORS
+========================================================= */
 export const getAllMentors = async (req, res, next) => {
   try {
-    const mentors = await Mentor.find().populate('userId', 'name email');
+    const { status } = req.query;
+    const filter = {};
+    if (status === 'pending') filter.isApproved = false;
+    if (status === 'approved') filter.isApproved = true;
+
+    const mentors = await Mentor.find(filter)
+      .populate('user', 'name email role');
 
     res.status(200).json({
       success: true,
@@ -206,9 +305,9 @@ export const getAllMentors = async (req, res, next) => {
   }
 };
 
-// @desc    Get all bookings
-// @route   GET /api/admin/all-bookings
-// @access  Private/Admin
+/* =========================================================
+   GET ALL BOOKINGS
+========================================================= */
 export const getAllBookings = async (req, res, next) => {
   try {
     const bookings = await Booking.find()
