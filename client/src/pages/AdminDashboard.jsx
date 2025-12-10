@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Users, AlertCircle, TrendingUp, CheckCircle, XCircle, Search } from 'lucide-react';
+import { Users, AlertCircle, TrendingUp, CheckCircle, XCircle, Search, Calendar, MessageCircle, UserCheck } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from '../components/ui/toaster';
 
@@ -20,6 +20,7 @@ const AdminDashboard = () => {
     totalCategories: 0,
   });
   const [allMentors, setAllMentors] = useState([]);
+  const [mentorBookings, setMentorBookings] = useState({}); // Store bookings by mentor ID
   const [issues, setIssues] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Pending');
@@ -42,8 +43,26 @@ const AdminDashboard = () => {
       ]);
 
       setStats(statsRes.data.data || stats);
+<<<<<<< HEAD
       setPendingMentors(mentorsRes.data.data || []);
+=======
+      const mentors = mentorsRes.data.data || [];
+      setAllMentors(mentors);
+>>>>>>> b635250 (Updated dashboards, mentor detail fixes, and auth controller changes)
       setIssues(issuesRes.data.data || []);
+
+      // Fetch bookings for approved mentors
+      const approvedMentors = mentors.filter(m => m.isApproved);
+      const bookingsPromises = approvedMentors.map(mentor => 
+        api.get(`/bookings/mentor/${mentor._id}`).catch(() => ({ data: { data: [] } }))
+      );
+      const bookingsResults = await Promise.all(bookingsPromises);
+      
+      const bookingsMap = {};
+      approvedMentors.forEach((mentor, index) => {
+        bookingsMap[mentor._id] = bookingsResults[index].data.data || [];
+      });
+      setMentorBookings(bookingsMap);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast('Failed to fetch data', 'error');
@@ -76,6 +95,65 @@ const AdminDashboard = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Get booking stats for a mentor
+  const getMentorBookingStats = (mentorId) => {
+    const bookings = mentorBookings[mentorId] || [];
+    const upcoming = bookings.filter(
+      b => new Date(b.sessionDate) > new Date() && b.status === 'confirmed'
+    );
+    const completed = bookings.filter(b => b.status === 'completed');
+    const activeMentees = new Set(bookings.map(b => b.mentee?._id)).size;
+    
+    return {
+      totalSessions: bookings.length,
+      upcomingSessions: upcoming.length,
+      completedSessions: completed.length,
+      activeMentees,
+    };
+  };
+
+  // Issue actions
+  const handleAddRemarks = async () => {
+    if (!remarksModal.remarks.trim()) {
+      toast('Please enter remarks', 'error');
+      return;
+    }
+    try {
+      await api.put(`/issues/${remarksModal.issueId}/remarks`, { remarks: remarksModal.remarks });
+      toast('Remarks added successfully', 'success');
+      setRemarksModal({ open: false, issueId: null, remarks: '' });
+      fetchData();
+    } catch (error) {
+      console.error('Error adding remarks:', error);
+      toast(error.response?.data?.message || 'Failed to add remarks', 'error');
+    }
+  };
+
+  const handleMarkInProgress = async (issueId) => {
+    try {
+      await api.put(`/issues/${issueId}/progress`);
+      toast('Issue marked as in progress', 'success');
+      fetchData();
+    } catch (error) {
+      console.error('Error updating issue:', error);
+      toast(error.response?.data?.message || 'Failed to update issue', 'error');
+    }
+  };
+
+  const handleCloseIssue = async (issueId) => {
+    try {
+      await api.put(`/issues/${issueId}/close`);
+      toast('Issue closed successfully', 'success');
+      fetchData();
+    } catch (error) {
+      console.error('Error closing issue:', error);
+      toast(error.response?.data?.message || 'Failed to close issue', 'error');
+    }
+  };
+
+>>>>>>> b635250 (Updated dashboards, mentor detail fixes, and auth controller changes)
   // Filter mentors based on search term and status
   const filteredMentors = pendingMentors.filter((mentor) => {
     if (!searchTerm) return true;
@@ -262,6 +340,7 @@ const AdminDashboard = () => {
                           </div>
                         </div>
 
+<<<<<<< HEAD
                         {/* Action Buttons */}
                         <div className="flex gap-3 pt-4 border-t">
                           <Button
@@ -279,6 +358,102 @@ const AdminDashboard = () => {
                             Reject Request
                           </Button>
                         </div>
+=======
+                        {/* Action Buttons - Only show for pending mentors */}
+                        {!mentor.isApproved ? (
+                          <div className="flex gap-3 pt-4 border-t">
+                            <Button
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleApproveMentor(mentor._id)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve Mentor
+                            </Button>
+                            <Button
+                              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                              onClick={() => handleRejectMentor(mentor._id)}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject Request
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="pt-4 border-t mt-4">
+                            <h4 className="font-semibold text-neutral-900 mb-3">Session & Activity Information</h4>
+                            {(() => {
+                              const stats = getMentorBookingStats(mentor._id);
+                              const bookings = mentorBookings[mentor._id] || [];
+                              const upcomingSessions = bookings.filter(
+                                b => new Date(b.sessionDate) > new Date() && b.status === 'confirmed'
+                              ).slice(0, 3);
+                              
+                              return (
+                                <div className="space-y-4">
+                                  {/* Stats Grid */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="bg-blue-50 p-3 rounded-lg">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Calendar className="h-4 w-4 text-blue-600" />
+                                        <span className="text-sm text-blue-600 font-medium">Total Sessions</span>
+                                      </div>
+                                      <p className="text-2xl font-bold text-blue-900">{stats.totalSessions}</p>
+                                    </div>
+                                    <div className="bg-green-50 p-3 rounded-lg">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        <span className="text-sm text-green-600 font-medium">Completed</span>
+                                      </div>
+                                      <p className="text-2xl font-bold text-green-900">{stats.completedSessions}</p>
+                                    </div>
+                                    <div className="bg-yellow-50 p-3 rounded-lg">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Calendar className="h-4 w-4 text-yellow-600" />
+                                        <span className="text-sm text-yellow-600 font-medium">Upcoming</span>
+                                      </div>
+                                      <p className="text-2xl font-bold text-yellow-900">{stats.upcomingSessions}</p>
+                                    </div>
+                                    <div className="bg-purple-50 p-3 rounded-lg">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <UserCheck className="h-4 w-4 text-purple-600" />
+                                        <span className="text-sm text-purple-600 font-medium">Active Mentees</span>
+                                      </div>
+                                      <p className="text-2xl font-bold text-purple-900">{stats.activeMentees}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Upcoming Sessions */}
+                                  {upcomingSessions.length > 0 && (
+                                    <div>
+                                      <h5 className="font-medium text-neutral-700 mb-2">Upcoming Sessions:</h5>
+                                      <div className="space-y-2">
+                                        {upcomingSessions.map((booking) => (
+                                          <div key={booking._id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                                            <div className="flex-1">
+                                              <p className="font-medium text-neutral-900">{booking.mentee?.name || 'Unknown'}</p>
+                                              <p className="text-sm text-neutral-600">
+                                                {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start || 'TBD'}
+                                              </p>
+                                            </div>
+                                            <span className={`px-2 py-1 text-xs rounded ${
+                                              booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                              {booking.status}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {upcomingSessions.length === 0 && stats.totalSessions === 0 && (
+                                    <p className="text-sm text-neutral-500 text-center py-2">No sessions scheduled yet</p>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+>>>>>>> b635250 (Updated dashboards, mentor detail fixes, and auth controller changes)
                       </motion.div>
                     ))
                   )}

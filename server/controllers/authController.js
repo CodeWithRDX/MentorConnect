@@ -117,7 +117,7 @@ export const login = async (req, res, next) => {
     }
 
     // Check user and password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password').populate('mentorProfile');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -158,6 +158,7 @@ export const login = async (req, res, next) => {
           role: user.role,
           isEmailVerified: user.isEmailVerified,
           avatar: user.avatar,
+          mentorProfile: user.mentorProfile,
         },
         token,
       },

@@ -10,8 +10,9 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 const MentorDashboard = () => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [mentorProfileData, setMentorProfileData] = useState(null);
   const [stats, setStats] = useState({
     totalBookings: 0,
     upcomingSessions: 0,
@@ -22,18 +23,65 @@ const MentorDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  const mentorProfile = user?.mentorProfile;
-  const isApproved = mentorProfile?.isApproved;
-  const isPending = mentorProfile && !mentorProfile.isApproved;
+  // Check if mentorProfile is populated or just an ID
+  const mentorProfileId = user?.mentorProfile?._id || user?.mentorProfile;
+  const mentorProfile = mentorProfileData || (user?.mentorProfile?.isApproved !== undefined ? user?.mentorProfile : null);
+  
+  const isApproved = mentorProfile?.isApproved === true;
+  const isPending = mentorProfileId && mentorProfile && mentorProfile.isApproved === false;
 
   useEffect(() => {
-    // If user has a mentor profile, load bookings; otherwise stop the spinner
-    if (isApproved) {
-      fetchBookings();
+    const fetchMentorData = async () => {
+      try {
+        // Refresh user data to get latest mentor profile status
+        await checkAuth();
+        
+        // Get updated user data
+        const updatedUserStr = localStorage.getItem('user');
+        const updatedUser = updatedUserStr ? JSON.parse(updatedUserStr) : null;
+        const currentMentorProfile = updatedUser?.mentorProfile || user?.mentorProfile;
+        
+        // Check if mentorProfile is populated (has isApproved) or just an ID
+        const hasFullProfile = currentMentorProfile && typeof currentMentorProfile === 'object' && 'isApproved' in currentMentorProfile;
+        
+        if (hasFullProfile) {
+          // We have full profile data
+          if (currentMentorProfile.isApproved) {
+            await fetchBookings();
+          } else {
+            setLoading(false);
+          }
+        } else if (mentorProfileId) {
+          // Fetch full mentor profile data if we only have an ID
+          try {
+            const response = await api.get(`/mentors/${mentorProfileId}`);
+            const mentorData = response.data.data;
+            setMentorProfileData(mentorData);
+            
+            if (mentorData?.isApproved) {
+              await fetchBookings();
+            } else {
+              setLoading(false);
+            }
+          } catch (error) {
+            console.error('Error fetching mentor profile:', error);
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in fetchMentorData:', error);
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchMentorData();
     } else {
       setLoading(false);
     }
-  }, [isApproved]);
+  }, [user]);
 
   const fetchBookings = async () => {
     try {
@@ -224,7 +272,7 @@ const MentorDashboard = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="lg:col-span-2"
+              className="lg:col-span-2 space-y-6"
             >
               <Card>
                 <CardHeader>
@@ -261,6 +309,62 @@ const MentorDashboard = () => {
                         ))}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Chat with Entrepreneurs */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MessageSquare className="mr-2" />
+                    Chat with Entrepreneurs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    // Get unique mentees from bookings
+                    const menteesMap = new Map();
+                    bookings.forEach(booking => {
+                      if (booking.mentee && !menteesMap.has(booking.mentee._id)) {
+                        menteesMap.set(booking.mentee._id, booking.mentee);
+                      }
+                    });
+                    const uniqueMentees = Array.from(menteesMap.values());
+
+                    if (uniqueMentees.length === 0) {
+                      return <p className="text-neutral-600 text-center py-8">No active conversations yet</p>;
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {uniqueMentees.slice(0, 5).map((mentee) => (
+                          <motion.div
+                            key={mentee._id}
+                            whileHover={{ x: 4 }}
+                            className="flex items-center gap-3 p-3 border border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-neutral-50 transition cursor-pointer"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                              {mentee.avatar ? (
+                                <img src={mentee.avatar} alt={mentee.name} className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                <span className="text-primary-600 font-semibold">
+                                  {mentee.name?.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-neutral-900">{mentee.name}</p>
+                              <p className="text-sm text-neutral-500">{mentee.email}</p>
+                            </div>
+                            <Button size="sm" variant="outline">
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Chat
+                            </Button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </motion.div>
