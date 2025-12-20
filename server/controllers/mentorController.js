@@ -1,5 +1,6 @@
 import Mentor from '../models/Mentor.js';
 import User from '../models/User.js';
+import Booking from '../models/Booking.js';
 
 // @desc    Get all mentors
 // @route   GET /api/mentors
@@ -176,4 +177,131 @@ export const getMentorsByCategory = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get top mentors by number of bookings
+// @route   GET /api/mentors/top
+// @access  Public
+export const getTopMentors = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 6;
+
+    const pipeline = [
+      {
+        $match: {
+          status: { $in: ['confirmed', 'completed'] },
+        },
+      },
+      {
+        $group: {
+          _id: '$mentor',
+          bookingsCount: { $sum: 1 },
+          lastBookingAt: { $max: '$createdAt' },
+        },
+      },
+      {
+        $sort: {
+          bookingsCount: -1,
+          lastBookingAt: -1,
+        },
+      },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'mentors',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'mentor',
+        },
+      },
+      { $unwind: '$mentor' },
+      {
+        $match: {
+          'mentor.isApproved': true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'mentor.user',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: '$mentor._id',
+          bookingsCount: 1,
+          rating: '$mentor.rating',
+          totalReviews: '$mentor.totalReviews',
+          hourlyRate: '$mentor.hourlyRate',
+          categories: '$mentor.categories',
+          skills: '$mentor.skills',
+          user: {
+            _id: '$user._id',
+            name: '$user.name',
+            email: '$user.email',
+            avatar: '$user.avatar',
+          },
+        },
+      },
+    ];
+
+    const topMentors = await Booking.aggregate(pipeline);
+
+    // If there are no bookings yet (or not enough top mentors), fill with random approved mentors
+    const existingIds = topMentors.map((m) => m._id);
+    const remainingCount = Math.max(0, limit - topMentors.length);
+
+    let fallbackMentors = [];
+    if (remainingCount > 0) {
+      fallbackMentors = await Mentor.aggregate([
+        {
+          $match: {
+            isApproved: true,
+            ...(existingIds.length ? { _id: { $nin: existingIds } } : {}),
+          },
+        },
+        { $sample: { size: remainingCount } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'user',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            _id: 1,
+            bookingsCount: { $literal: 0 },
+            rating: 1,
+            totalReviews: 1,
+            hourlyRate: 1,
+            categories: 1,
+            skills: 1,
+            user: {
+              _id: '$user._id',
+              name: '$user.name',
+              email: '$user.email',
+              avatar: '$user.avatar',
+            },
+          },
+        },
+      ]);
+    }
+
+    const data = [...topMentors, ...fallbackMentors].slice(0, limit);
+
+    res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

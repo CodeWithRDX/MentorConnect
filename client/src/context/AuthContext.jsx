@@ -11,9 +11,18 @@ export const useAuth = () => {
   return context;
 };
 
+const getCachedUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Start with any cached user to avoid blocking UI on mount
+  const [user, setUser] = useState(getCachedUser());
+  const [loading, setLoading] = useState(false);
   const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
@@ -27,14 +36,25 @@ export const AuthProvider = ({ children }) => {
   // CHECK AUTH
   // ----------------------------
   const checkAuth = async () => {
+    setLoading(true);
     try {
-      const response = await api.get('/auth/me');
+      // Prefer bearer token from storage (proxy + same-site cookies can be flaky in dev)
+      const storedToken = localStorage.getItem('token');
+      const response = await api.get('/auth/me', {
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+      });
       const loggedUser = response.data.data.user;
       setUser(loggedUser);
       localStorage.setItem('user', JSON.stringify(loggedUser));
     } catch (error) {
-      setUser(null);
-      localStorage.removeItem('user');
+      // Fall back to any cached user so the UI can still render something
+      const cachedUser = getCachedUser();
+      if (cachedUser) {
+        setUser(cachedUser);
+      } else {
+        setUser(null);
+        localStorage.removeItem('user');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,12 +67,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/login', { email, password });
 
-      const userData = response.data.data.user || response.data.data;
+      const userData = response.data?.data?.user || response.data?.data;
+      const token = response.data?.data?.token;
+
+      if (token) {
+        localStorage.setItem('token', token);
+      }
 
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
 
-      return response.data;
+      return { user: userData, token };
     } catch (error) {
       console.error('Login error:', error);
       throw error;

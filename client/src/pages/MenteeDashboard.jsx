@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Calendar, TrendingUp, Users, Star, BookOpen, Heart, MessageSquare, Search } from 'lucide-react';
+import { Calendar, TrendingUp, Users, Star, MessageSquare } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 const MenteeDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({
     upcomingSessions: 0,
@@ -80,12 +81,24 @@ const MenteeDashboard = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-neutral-900 mb-2">Welcome back, Entrepreneur!</h1>
+                <h1 className="text-4xl font-bold text-neutral-900 mb-2">
+                  Welcome back, {user?.name?.split(' ')[0] || 'Entrepreneur'}!
+                </h1>
                 <p className="text-neutral-600">Manage your mentorship sessions and track your progress</p>
               </div>
-              <Link to="/mentors">
-                <Button className="bg-primary-600">Browse Mentors</Button>
-              </Link>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/mentee/messages')}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat
+                </Button>
+                <Link to="/mentors">
+                  <Button className="bg-primary-600">Browse Mentors</Button>
+                </Link>
+              </div>
             </div>
           </motion.div>
 
@@ -166,13 +179,14 @@ const MenteeDashboard = () => {
 
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Upcoming Sessions */}
+            {/* Upcoming Sessions & Chat */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="lg:col-span-2"
+              className="lg:col-span-2 space-y-6"
             >
+              {/* Upcoming Sessions */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -218,13 +232,82 @@ const MenteeDashboard = () => {
                           <p className="text-sm text-neutral-600 mb-3">
                             📅 {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start || 'TBD'}
                           </p>
-                          <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                            Join Call
-                          </Button>
+                          <div className="flex gap-3">
+                            <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
+                              Join Call
+                            </Button>
+                            {booking.mentor?.user?._id && (
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => navigate(`/mentee/messages?mentor=${booking.mentor.user._id}`)}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-1" />
+                                Chat
+                              </Button>
+                            )}
+                          </div>
                         </motion.div>
                       ))}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Chat with Mentors */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MessageSquare className="mr-2" />
+                    Chat with Mentors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const mentorsMap = new Map();
+                    bookings.forEach((booking) => {
+                      if (booking.mentor?.user && !mentorsMap.has(booking.mentor.user._id)) {
+                        mentorsMap.set(booking.mentor.user._id, booking.mentor.user);
+                      }
+                    });
+                    const uniqueMentors = Array.from(mentorsMap.values());
+
+                    if (uniqueMentors.length === 0) {
+                      return (
+                        <p className="text-neutral-500 text-center py-8">
+                          No mentors yet. Book a session to start chatting.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {uniqueMentors.slice(0, 5).map((mentor) => (
+                          <motion.div
+                            key={mentor._id}
+                            whileHover={{ x: 4 }}
+                            className="flex items-center gap-3 p-3 border border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-neutral-50 transition"
+                          >
+                            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+                              {mentor.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-sm">{mentor.name}</p>
+                              <p className="text-xs text-neutral-600">{mentor.email}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/mentee/messages?mentor=${mentor._id}`)}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Chat
+                            </Button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </motion.div>
@@ -234,48 +317,29 @@ const MenteeDashboard = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="space-y-6"
             >
-              {/* Quick Actions Card */}
               <Card>
                 <CardHeader>
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <Link to="/mentors">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      Find a Mentor
-                    </Button>
-                  </Link>
-                  <Button variant="outline" className="w-full">
-                    View Resources
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    Track Goals
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Recommended Mentors */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recommended for You</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <motion.div
-                    whileHover={{ x: 4 }}
-                    className="flex items-center p-3 border rounded-lg hover:border-primary-300 cursor-pointer"
-                  >
-                    <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mr-3"></div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">Aisha Patel</p>
-                      <p className="text-xs text-neutral-600">Marketing & Branding</p>
-                      <div className="flex items-center mt-1">
-                        <Star className="h-3 w-3 text-yellow-500 mr-1" />
-                        <span className="text-xs text-neutral-600">4.9</span>
-                      </div>
-                    </div>
-                  </motion.div>
+                <CardContent>
+                  <div className="flex flex-col gap-6">
+                    <Link to="/mentors">
+                      <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                        Find a Mentor
+                      </Button>
+                    </Link>
+                    <Link to="/resources">
+                      <Button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                        View Resources
+                      </Button>
+                    </Link>
+                    <Link to="/goals">
+                      <Button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                        Track Goals
+                      </Button>
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -305,6 +369,7 @@ const MenteeDashboard = () => {
                           <th className="text-left p-3 font-semibold text-sm">Topic</th>
                           <th className="text-left p-3 font-semibold text-sm">Status</th>
                           <th className="text-left p-3 font-semibold text-sm">Amount</th>
+                          <th className="text-left p-3 font-semibold text-sm">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -326,6 +391,18 @@ const MenteeDashboard = () => {
                               </span>
                             </td>
                             <td className="p-3 text-sm font-semibold">${booking.amount || '0'}</td>
+                            <td className="p-3 text-sm">
+                              {booking.mentor?.user?._id && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/mentee/messages?mentor=${booking.mentor.user._id}`)}
+                                >
+                                  <MessageSquare className="h-4 w-4 mr-1" />
+                                  Chat
+                                </Button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

@@ -11,6 +11,8 @@ import mentorRoutes from './routes/mentorRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
+import goalRoutes from './routes/goalRoutes.js';
+import messageRoutes from './routes/messageRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -25,7 +27,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  // Allow common localhost origins in dev; tighten via FRONTEND_URL in prod
+  origin: (origin, callback) => {
+    const allowed =
+      !origin ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin === process.env.FRONTEND_URL;
+    callback(null, allowed ? origin : false);
+  },
   credentials: true,
 }));
 
@@ -38,6 +48,8 @@ app.use('/api/mentors', mentorRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/issues', issueRoutes);
+app.use('/api/goals', goalRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

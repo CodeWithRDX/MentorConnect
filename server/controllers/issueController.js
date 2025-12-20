@@ -30,12 +30,17 @@ export const listIssues = async (req, res, next) => {
   }
 };
 
-// Update status/priority (admin only)
+// Update status/priority/remark (admin only)
 export const updateIssue = async (req, res, next) => {
   try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.priority) update.priority = req.body.priority;
+    if (req.body.remark !== undefined) update.remark = req.body.remark;
+
     const issue = await Issue.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      update,
       { new: true, runValidators: true },
     );
     if (!issue) {

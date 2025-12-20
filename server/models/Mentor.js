@@ -71,6 +71,11 @@ const mentorSchema = new mongoose.Schema({
     issuer: String,
     year: Number,
   }],
+  resources: [{
+    title: { type: String, trim: true },
+    url: { type: String, trim: true },
+    description: { type: String, trim: true },
+  }],
 }, {
   timestamps: true,
 });

@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import bcrypt from 'bcryptjs';
 import User from './models/User.js';
 import Mentor from './models/Mentor.js';
 import Category from './models/Category.js';
@@ -32,45 +31,42 @@ const seedData = async () => {
       { name: 'Career Coaching', description: 'Career development and guidance' },
     ]);
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    // Use plain text here; User model's pre-save hook will hash it.
+    const defaultPassword = 'admin123';
 
-    // Create admin user
+    // Create an admin user
     const admin = await User.create({
-      name: 'Admin User',
+      name: 'Platform Admin',
       email: 'admin@mentorconnect.com',
-      password: 'admin123',
+      password: defaultPassword,
       role: 'admin',
       isEmailVerified: true,
     });
 
-    await admin.save();
-
-    // Create mentor users
-    const mentorUsers = await User.insertMany([
+    // Create mentor users (pre-save hook hashes their passwords)
+    const mentorUsers = await User.create([
       {
         name: 'John Smith',
         email: 'john@example.com',
         password: defaultPassword,
         role: 'mentor',
         isEmailVerified: true,
-      }),
-      User.create({
+      },
+      {
         name: 'Sarah Johnson',
         email: 'sarah@example.com',
         password: defaultPassword,
         role: 'mentor',
         isEmailVerified: true,
-      }),
-      User.create({
+      },
+      {
         name: 'Michael Chen',
         email: 'michael@example.com',
         password: defaultPassword,
         role: 'mentor',
         isEmailVerified: true,
-      }),
+      },
     ]);
-
     // Create mentor profiles
     const mentors = await Mentor.insertMany([
       {
@@ -136,7 +132,7 @@ const seedData = async () => {
     const pendingMentorUser = await User.create({
       name: 'Pending Mentor',
       email: 'pending.mentor@example.com',
-      password: hashedPassword,
+      password: defaultPassword,
       role: 'mentor',
       isEmailVerified: true,
     });

@@ -133,6 +133,14 @@ export const login = async (req, res, next) => {
       });
     }
 
+    // Admins should use the admin portal
+    if (user.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin accounts must log in via the admin portal.',
+      });
+    }
+
     // Generate token
     const token = user.generateToken();
 
@@ -140,8 +148,9 @@ export const login = async (req, res, next) => {
     const options = {
       expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    // Allow cross-site requests from dev client (different port)
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     };
 
     res.cookie('token', token, options);

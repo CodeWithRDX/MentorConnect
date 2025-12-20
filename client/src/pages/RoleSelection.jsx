@@ -63,10 +63,10 @@ const RoleSelection = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <div className="flex-1 bg-gradient-to-b from-blue-50 to-white py-16 lg:py-24">
+      <div className="flex-1 bg-gradient-to-b from-blue-50 to-white dark:from-neutral-900 dark:to-neutral-800 py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <motion.div
@@ -75,10 +75,10 @@ const RoleSelection = () => {
             transition={{ duration: 0.5 }}
             className="text-center mb-16"
           >
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+            <h1 className="text-4xl lg:text-5xl font-bold text-foreground mb-6">
               Welcome to MentorConnect
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Choose your role to get started and join thousands of successful mentorship connections
             </p>
           </motion.div>
@@ -94,7 +94,7 @@ const RoleSelection = () => {
                 onClick={() => handleRoleSelect(role.id)}
                 className="group cursor-pointer"
               >
-                <div className="h-full bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-blue-200 overflow-hidden">
+                <div className="h-full bg-card text-card-foreground rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-border hover:border-primary-200 dark:hover:border-primary-800 overflow-hidden">
                   {/* Header with gradient */}
                   <div className={`bg-gradient-to-r ${role.color} p-8 text-white`}>
                     <div className="flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
@@ -122,7 +122,7 @@ const RoleSelection = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
-                          <span className="text-gray-700">{detail}</span>
+                          <span className="text-muted-foreground">{detail}</span>
                         </motion.li>
                       ))}
                     </ul>
@@ -132,11 +132,10 @@ const RoleSelection = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       disabled={selectedRole === role.id}
-                      className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
-                        selectedRole === role.id
-                          ? `bg-gradient-to-r ${role.color} text-white`
-                          : `bg-gray-100 hover:bg-gray-200 text-gray-900`
-                      }`}
+                      className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${selectedRole === role.id
+                        ? `bg-gradient-to-r ${role.color} text-white`
+                        : `bg-muted hover:bg-muted/80 text-foreground`
+                        }`}
                     >
                       {selectedRole === role.id ? (
                         <>
@@ -164,13 +163,13 @@ const RoleSelection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="bg-blue-50 rounded-2xl p-8 border border-blue-200 text-center"
+            className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-8 border border-blue-200 dark:border-blue-800 text-center"
           >
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Already have an account?</h3>
-            <p className="text-gray-600 mb-6">
+            <h3 className="text-xl font-bold text-foreground mb-4">Already have an account?</h3>
+            <p className="text-muted-foreground mb-6">
               You can change your role anytime in your account settings after logging in.
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               All features are available regardless of your selected role. You can explore both mentor and mentee functionalities.
             </p>
           </motion.div>

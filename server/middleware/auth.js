@@ -7,12 +7,9 @@ export const protect = async (req, res, next) => {
   // Check for token in cookies or Authorization header
   if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
-    console.log('Token received from cookies:', token); // Debug log
   } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-    console.log('Token received from Authorization header:', token); // Debug log
   } else {
-    console.log('No token provided'); // Debug log
     return res.status(401).json({
       success: false,
       code: 'TOKEN_MISSING',

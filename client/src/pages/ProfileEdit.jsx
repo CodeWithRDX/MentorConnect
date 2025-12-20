@@ -79,18 +79,18 @@ const ProfileEdit = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      
-      <div className="flex-1 bg-neutral-50 py-12">
+
+      <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 py-12">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-4xl font-bold text-neutral-900 mb-2">Edit Profile</h1>
-            <p className="text-neutral-600">Update your personal information</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Edit Profile</h1>
+            <p className="text-muted-foreground">Update your personal information</p>
           </motion.div>
 
           <motion.div
@@ -105,7 +105,7 @@ const ProfileEdit = () => {
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Avatar Section */}
-                  <div className="flex flex-col items-center space-y-4 pb-6 border-b">
+                  <div className="flex flex-col items-center space-y-4 pb-6 border-b border-border">
                     <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-4xl overflow-hidden">
                       {formData.avatar ? (
                         <img src={formData.avatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -126,7 +126,7 @@ const ProfileEdit = () => {
                         onChange={handleAvatarUpload}
                         className="hidden"
                       />
-                      <p className="text-xs text-neutral-500 mt-2">JPG, PNG or GIF (MAX. 5MB)</p>
+                      <p className="text-xs text-muted-foreground mt-2">JPG, PNG or GIF (MAX. 5MB)</p>
                     </div>
                   </div>
 
@@ -162,7 +162,7 @@ const ProfileEdit = () => {
                       onChange={handleChange}
                       required
                     />
-                    <p className="text-xs text-neutral-500">
+                    <p className="text-xs text-muted-foreground">
                       Your email cannot be changed for security reasons
                     </p>
                   </div>

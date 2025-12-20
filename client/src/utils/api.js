@@ -1,11 +1,15 @@
 import axios from 'axios';
 
-// Default to backend dev port (see server/server.js and README)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Prefer same-origin /api during dev to avoid port mismatches.
+// If an explicit env is set, use it; otherwise build from window.location.
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api');
 
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
+  timeout: 8000, // fail fast to avoid hanging spinners
   headers: {
     'Content-Type': 'application/json',
   },

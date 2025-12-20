@@ -16,6 +16,7 @@ const issueSchema = new mongoose.Schema({
   type: { type: String, enum: ['payment', 'technical', 'account', 'other'], default: 'other' },
   priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
   status: { type: String, enum: ['open', 'in_progress', 'closed'], default: 'open' },
+  remark: { type: String, trim: true },
 }, { timestamps: true });
 
 export default mongoose.model('Issue', issueSchema);

@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Users, AlertCircle, TrendingUp, CheckCircle, XCircle, Search, Calendar, MessageCircle, UserCheck } from 'lucide-react';
+import { Users, AlertCircle, TrendingUp, CheckCircle, XCircle, Search } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from '../components/ui/toaster';
 
@@ -20,12 +20,34 @@ const AdminDashboard = () => {
     totalCategories: 0,
   });
   const [allMentors, setAllMentors] = useState([]);
-  const [mentorBookings, setMentorBookings] = useState({}); // Store bookings by mentor ID
   const [issues, setIssues] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Pending');
   const [loading, setLoading] = useState(true);
-  const [remarksModal, setRemarksModal] = useState({ open: false, issueId: null, remarks: '' });
+
+  const updateIssueStatus = async (issueId, status) => {
+    try {
+      await api.put(`/issues/${issueId}`, { status });
+      toast(`Issue marked as ${status.replace('_', ' ')}`, 'success');
+      fetchData();
+    } catch (error) {
+      console.error('Error updating issue status:', error);
+      toast('Failed to update issue', 'error');
+    }
+  };
+
+  const updateIssueRemark = async (issueId) => {
+    const remark = window.prompt('Add remark for this issue:');
+    if (remark === null) return; // cancelled
+    try {
+      await api.put(`/issues/${issueId}`, { remark });
+      toast('Remark saved', 'success');
+      fetchData();
+    } catch (error) {
+      console.error('Error adding remark:', error);
+      toast('Failed to add remark', 'error');
+    }
+  };
 
   // Fetch data on component mount
   useEffect(() => {
@@ -38,31 +60,13 @@ const AdminDashboard = () => {
     try {
       const [statsRes, mentorsRes, issuesRes] = await Promise.all([
         api.get('/admin/stats'),
-        api.get('/admin/all-mentors?status=pending'),
+        api.get('/admin/all-mentors'),
         api.get('/issues'),
       ]);
 
       setStats(statsRes.data.data || stats);
-<<<<<<< HEAD
-      setPendingMentors(mentorsRes.data.data || []);
-=======
-      const mentors = mentorsRes.data.data || [];
-      setAllMentors(mentors);
->>>>>>> b635250 (Updated dashboards, mentor detail fixes, and auth controller changes)
+      setAllMentors(mentorsRes.data.data || []);
       setIssues(issuesRes.data.data || []);
-
-      // Fetch bookings for approved mentors
-      const approvedMentors = mentors.filter(m => m.isApproved);
-      const bookingsPromises = approvedMentors.map(mentor => 
-        api.get(`/bookings/mentor/${mentor._id}`).catch(() => ({ data: { data: [] } }))
-      );
-      const bookingsResults = await Promise.all(bookingsPromises);
-      
-      const bookingsMap = {};
-      approvedMentors.forEach((mentor, index) => {
-        bookingsMap[mentor._id] = bookingsResults[index].data.data || [];
-      });
-      setMentorBookings(bookingsMap);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast('Failed to fetch data', 'error');
@@ -95,74 +99,26 @@ const AdminDashboard = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
-  // Get booking stats for a mentor
-  const getMentorBookingStats = (mentorId) => {
-    const bookings = mentorBookings[mentorId] || [];
-    const upcoming = bookings.filter(
-      b => new Date(b.sessionDate) > new Date() && b.status === 'confirmed'
-    );
-    const completed = bookings.filter(b => b.status === 'completed');
-    const activeMentees = new Set(bookings.map(b => b.mentee?._id)).size;
-    
-    return {
-      totalSessions: bookings.length,
-      upcomingSessions: upcoming.length,
-      completedSessions: completed.length,
-      activeMentees,
-    };
-  };
-
-  // Issue actions
-  const handleAddRemarks = async () => {
-    if (!remarksModal.remarks.trim()) {
-      toast('Please enter remarks', 'error');
-      return;
-    }
-    try {
-      await api.put(`/issues/${remarksModal.issueId}/remarks`, { remarks: remarksModal.remarks });
-      toast('Remarks added successfully', 'success');
-      setRemarksModal({ open: false, issueId: null, remarks: '' });
-      fetchData();
-    } catch (error) {
-      console.error('Error adding remarks:', error);
-      toast(error.response?.data?.message || 'Failed to add remarks', 'error');
-    }
-  };
-
-  const handleMarkInProgress = async (issueId) => {
-    try {
-      await api.put(`/issues/${issueId}/progress`);
-      toast('Issue marked as in progress', 'success');
-      fetchData();
-    } catch (error) {
-      console.error('Error updating issue:', error);
-      toast(error.response?.data?.message || 'Failed to update issue', 'error');
-    }
-  };
-
-  const handleCloseIssue = async (issueId) => {
-    try {
-      await api.put(`/issues/${issueId}/close`);
-      toast('Issue closed successfully', 'success');
-      fetchData();
-    } catch (error) {
-      console.error('Error closing issue:', error);
-      toast(error.response?.data?.message || 'Failed to close issue', 'error');
-    }
-  };
-
->>>>>>> b635250 (Updated dashboards, mentor detail fixes, and auth controller changes)
   // Filter mentors based on search term and status
-  const filteredMentors = pendingMentors.filter((mentor) => {
-    if (!searchTerm) return true;
-    return (
-      mentor.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      mentor.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      mentor.skills?.some((e) => e.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      mentor.categories?.some((e) => e.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+  const filteredMentors = allMentors.filter((mentor) => {
+    // Filter by status
+    if (filterStatus === 'Pending' && mentor.isApproved !== false) return false;
+    if (filterStatus === 'Approved' && mentor.isApproved !== true) return false;
+    if (filterStatus === 'Rejected' && mentor.isApproved !== false) return false; // Note: rejected mentors are deleted, so this may be empty
+
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        mentor.user?.name?.toLowerCase().includes(searchLower) ||
+        mentor.user?.email?.toLowerCase().includes(searchLower) ||
+        mentor.skills?.some((skill) => skill.toLowerCase().includes(searchLower)) ||
+        mentor.categories?.some((cat) => cat.toLowerCase().includes(searchLower)) ||
+        mentor.bio?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    return true;
   });
 
   if (loading) {
@@ -174,10 +130,10 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
-      <div className="flex-1 bg-neutral-50 py-12">
+      <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <motion.div
@@ -187,8 +143,8 @@ const AdminDashboard = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-neutral-900 mb-2">Admin Dashboard</h1>
-                <p className="text-neutral-600">Manage mentor approvals and platform issues</p>
+                <h1 className="text-4xl font-bold text-foreground mb-2">Admin Dashboard</h1>
+                <p className="text-muted-foreground">Manage mentor approvals and platform issues</p>
               </div>
             </div>
           </motion.div>
@@ -199,8 +155,8 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-neutral-600 mb-1">Pending Approvals</p>
-                    <p className="text-3xl font-bold">{stats.pendingMentors || 0}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Pending Approvals</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.pendingMentors || 0}</p>
                   </div>
                   <Users className="h-10 w-10 text-blue-600" />
                 </div>
@@ -211,8 +167,8 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-neutral-600 mb-1">Open Issues</p>
-                    <p className="text-3xl font-bold">{stats.openIssues || 0}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Open Issues</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.openIssues || 0}</p>
                   </div>
                   <AlertCircle className="h-10 w-10 text-red-600" />
                 </div>
@@ -223,10 +179,10 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-neutral-600 mb-1">Open Issues</p>
-                    <p className="text-3xl font-bold">3</p>
+                    <p className="text-sm text-muted-foreground mb-1">Total Users</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.totalUsers || 0}</p>
                   </div>
-                  <AlertCircle className="h-10 w-10 text-yellow-600" />
+                  <Users className="h-10 w-10 text-purple-600" />
                 </div>
               </CardContent>
             </Card>
@@ -235,8 +191,8 @@ const AdminDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-neutral-600 mb-1">Total Mentors</p>
-                    <p className="text-3xl font-bold">{stats.approvedMentors || 0}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Total Mentors</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.approvedMentors || 0}</p>
                   </div>
                   <TrendingUp className="h-10 w-10 text-green-600" />
                 </div>
@@ -245,14 +201,13 @@ const AdminDashboard = () => {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-4 border-b border-neutral-200 mb-6">
+          <div className="flex gap-4 border-b border-border mb-6">
             {['overview', 'requests', 'issues'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-4 px-4 font-medium transition ${
-                  activeTab === tab ? 'text-primary-600' : 'text-neutral-600'
-                }`}
+                className={`pb-4 px-4 font-medium transition ${activeTab === tab ? 'text-primary-600 border-b-2 border-primary-600' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -261,9 +216,74 @@ const AdminDashboard = () => {
 
           {/* Tab Content */}
           {activeTab === 'overview' && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">Overview</h2>
-              {/* Add overview content here */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Platform Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Users</p>
+                      <p className="text-2xl font-bold text-foreground">{stats.totalUsers || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Approved Mentors</p>
+                      <p className="text-2xl font-bold text-foreground">{stats.approvedMentors || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending Mentors</p>
+                      <p className="text-2xl font-bold text-foreground">{stats.pendingMentors || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Bookings</p>
+                      <p className="text-2xl font-bold text-foreground">{stats.totalBookings || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Open Issues</p>
+                      <p className="text-2xl font-bold text-foreground">{stats.openIssues || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Categories</p>
+                      <p className="text-2xl font-bold text-foreground">{stats.totalCategories || 0}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button
+                      onClick={() => {
+                        setActiveTab('requests');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Review Mentor Requests ({stats.pendingMentors})
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setActiveTab('issues');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      View Platform Issues ({stats.openIssues})
+                    </Button>
+                    <Button
+                      onClick={fetchData}
+                      className="w-full bg-gray-600 hover:bg-gray-700 text-white"
+                    >
+                      Refresh Data
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -276,24 +296,23 @@ const AdminDashboard = () => {
                 {/* Search and Filter */}
                 <div className="mb-6 space-y-4">
                   <div className="relative">
-                    <Search className="absolute left-3 top-3 h-5 w-5 text-neutral-400" />
+                    <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                     <Input
                       placeholder="Search by name, title, or expertise..."
-                      className="pl-10"
+                      className="pl-10 bg-background text-foreground"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <div className="flex gap-2">
-                    {['All', 'Pending', 'Approved', 'Rejected'].map((status) => (
+                    {['All', 'Pending', 'Approved'].map((status) => (
                       <button
                         key={status}
                         onClick={() => setFilterStatus(status)}
-                        className={`px-4 py-2 rounded-lg font-medium transition ${
-                          filterStatus === status
+                        className={`px-4 py-2 rounded-lg font-medium transition ${filterStatus === status
                             ? 'bg-primary-600 text-white'
-                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                        }`}
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
                       >
                         {status}
                       </button>
@@ -304,64 +323,58 @@ const AdminDashboard = () => {
                 {/* Mentor List */}
                 <div className="space-y-4">
                   {filteredMentors.length === 0 ? (
-                    <p className="text-center text-neutral-600 py-8">No mentor requests found</p>
+                    <p className="text-center text-muted-foreground py-8">No mentor requests found</p>
                   ) : (
                     filteredMentors.map((mentor) => (
                       <motion.div
                         key={mentor._id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="p-6 border rounded-lg hover:shadow-md transition"
+                        className="p-6 border border-border rounded-lg hover:shadow-md transition bg-card text-card-foreground"
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <p className="font-bold text-lg">{mentor.user?.name}</p>
-                              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
-                                Pending
+                              <p className="font-bold text-lg text-foreground">{mentor.user?.name}</p>
+                              <span className={`px-3 py-1 text-sm rounded-full ${mentor.isApproved
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                                  : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                                }`}>
+                                {mentor.isApproved ? 'Approved' : 'Pending'}
                               </span>
                             </div>
-                            <p className="text-neutral-600 mb-3">{mentor.title}</p>
-                            <p className="text-neutral-500 text-sm mb-3">{mentor.email || mentor.user?.email}</p>
-                            
-                            {/* Skills/Expertise */}
+                            <p className="text-muted-foreground text-sm mb-3">{mentor.user?.email}</p>
+
+                            {/* Skills */}
                             <div className="flex flex-wrap gap-2 mb-3">
-                              {(mentor.expertise || []).slice(0, 3).map((skill, idx) => (
-                                <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
+                              {(mentor.skills || []).slice(0, 5).map((skill, idx) => (
+                                <span key={idx} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-sm rounded-full">
                                   {skill}
                                 </span>
                               ))}
                             </div>
 
+                            {/* Categories */}
+                            {mentor.categories && mentor.categories.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {mentor.categories.map((cat, idx) => (
+                                  <span key={idx} className="px-3 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 text-sm rounded-full">
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
                             {/* Bio */}
-                            <p className="text-sm text-neutral-600">
+                            <p className="text-sm text-muted-foreground">
                               <strong>Bio:</strong> {mentor.bio?.substring(0, 100)}...
                             </p>
                           </div>
                         </div>
 
-<<<<<<< HEAD
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 pt-4 border-t">
-                          <Button
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleApproveMentor(mentor._id)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve Mentor
-                          </Button>
-                          <Button
-                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                            onClick={() => handleRejectMentor(mentor._id)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Reject Request
-                          </Button>
-                        </div>
-=======
                         {/* Action Buttons - Only show for pending mentors */}
-                        {!mentor.isApproved ? (
-                          <div className="flex gap-3 pt-4 border-t">
+                        {!mentor.isApproved && (
+                          <div className="flex gap-3 pt-4 border-t border-border">
                             <Button
                               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                               onClick={() => handleApproveMentor(mentor._id)}
@@ -377,83 +390,7 @@ const AdminDashboard = () => {
                               Reject Request
                             </Button>
                           </div>
-                        ) : (
-                          <div className="pt-4 border-t mt-4">
-                            <h4 className="font-semibold text-neutral-900 mb-3">Session & Activity Information</h4>
-                            {(() => {
-                              const stats = getMentorBookingStats(mentor._id);
-                              const bookings = mentorBookings[mentor._id] || [];
-                              const upcomingSessions = bookings.filter(
-                                b => new Date(b.sessionDate) > new Date() && b.status === 'confirmed'
-                              ).slice(0, 3);
-                              
-                              return (
-                                <div className="space-y-4">
-                                  {/* Stats Grid */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="bg-blue-50 p-3 rounded-lg">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <Calendar className="h-4 w-4 text-blue-600" />
-                                        <span className="text-sm text-blue-600 font-medium">Total Sessions</span>
-                                      </div>
-                                      <p className="text-2xl font-bold text-blue-900">{stats.totalSessions}</p>
-                                    </div>
-                                    <div className="bg-green-50 p-3 rounded-lg">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <CheckCircle className="h-4 w-4 text-green-600" />
-                                        <span className="text-sm text-green-600 font-medium">Completed</span>
-                                      </div>
-                                      <p className="text-2xl font-bold text-green-900">{stats.completedSessions}</p>
-                                    </div>
-                                    <div className="bg-yellow-50 p-3 rounded-lg">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <Calendar className="h-4 w-4 text-yellow-600" />
-                                        <span className="text-sm text-yellow-600 font-medium">Upcoming</span>
-                                      </div>
-                                      <p className="text-2xl font-bold text-yellow-900">{stats.upcomingSessions}</p>
-                                    </div>
-                                    <div className="bg-purple-50 p-3 rounded-lg">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <UserCheck className="h-4 w-4 text-purple-600" />
-                                        <span className="text-sm text-purple-600 font-medium">Active Mentees</span>
-                                      </div>
-                                      <p className="text-2xl font-bold text-purple-900">{stats.activeMentees}</p>
-                                    </div>
-                                  </div>
-
-                                  {/* Upcoming Sessions */}
-                                  {upcomingSessions.length > 0 && (
-                                    <div>
-                                      <h5 className="font-medium text-neutral-700 mb-2">Upcoming Sessions:</h5>
-                                      <div className="space-y-2">
-                                        {upcomingSessions.map((booking) => (
-                                          <div key={booking._id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                                            <div className="flex-1">
-                                              <p className="font-medium text-neutral-900">{booking.mentee?.name || 'Unknown'}</p>
-                                              <p className="text-sm text-neutral-600">
-                                                {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start || 'TBD'}
-                                              </p>
-                                            </div>
-                                            <span className={`px-2 py-1 text-xs rounded ${
-                                              booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                              {booking.status}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {upcomingSessions.length === 0 && stats.totalSessions === 0 && (
-                                    <p className="text-sm text-neutral-500 text-center py-2">No sessions scheduled yet</p>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
                         )}
->>>>>>> b635250 (Updated dashboards, mentor detail fixes, and auth controller changes)
                       </motion.div>
                     ))
                   )}
@@ -463,42 +400,88 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'issues' && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">Issues</h2>
-              {/* Issues content */}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Platform Issues</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {issues.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No issues found</p>
+                  ) : (
+                    issues.map((issue) => (
+                      <motion.div
+                        key={issue._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="p-6 border border-border rounded-lg hover:shadow-md transition bg-card text-card-foreground"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-bold text-lg text-foreground">{issue.title}</h3>
+                              <span className={`px-3 py-1 text-sm rounded-full ${issue.status === 'open'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                  : issue.status === 'in_progress'
+                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                                    : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                                }`}>
+                                {issue.status?.replace('_', ' ').toUpperCase()}
+                              </span>
+                              <span className={`px-3 py-1 text-sm rounded-full ${issue.priority === 'high'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                  : issue.priority === 'medium'
+                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                                }`}>
+                                {issue.priority?.toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-muted-foreground mb-2">{issue.description}</p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>Type: {issue.type}</span>
+                              <span>Role: {issue.role}</span>
+                              {issue.createdAt && (
+                                <span>Created: {new Date(issue.createdAt).toLocaleDateString()}</span>
+                              )}
+                              {issue.remark && (
+                                <span className="text-primary-700 dark:text-primary-400 font-medium">Remark: {issue.remark}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-3 pt-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => updateIssueStatus(issue._id, 'in_progress')}
+                            className="text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                          >
+                            Mark In-Progress
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => updateIssueStatus(issue._id, 'closed')}
+                            className="text-green-700 dark:text-green-400 border-green-300 dark:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                          >
+                            Close Issue
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => updateIssueRemark(issue._id)}
+                            className="text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          >
+                            Add Remark
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
-
-      {/* Remarks Modal */}
-      {remarksModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Add Remarks</h3>
-            <textarea
-              className="w-full p-3 border border-gray-300 rounded-lg mb-4 min-h-[120px]"
-              placeholder="Enter remarks..."
-              value={remarksModal.remarks}
-              onChange={(e) => setRemarksModal({ ...remarksModal, remarks: e.target.value })}
-            />
-            <div className="flex gap-3">
-              <Button
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={handleAddRemarks}
-              >
-                Save Remarks
-              </Button>
-              <Button
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
-                onClick={() => setRemarksModal({ open: false, issueId: null, remarks: '' })}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Footer />
     </div>

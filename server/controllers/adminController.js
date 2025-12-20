@@ -62,7 +62,8 @@ export const adminLogin = async (req, res) => {
       expires: new Date(Date.now() + (process.env.COOKIE_EXPIRE || 7) * 24 * 60 * 60 * 1000),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      // Allow cross-site requests from dev client (different port)
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     };
 
     res.cookie("token", token, cookieOptions);
@@ -142,27 +143,37 @@ export const approveMentor = async (req, res, next) => {
 };
 
 /* =========================================================
-export const rejectMentor = async (req, res, next) => {
+   REJECT MENTOR
+========================================================= */
+export const rejectMentor = async (req, res) => {
   try {
-    const mentor = await Mentor.findById(req.params.id);
-
-    if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Mentor not found',
+    const mentorId = req.params.id || req.params.mentorId;
+    
+    // Delete the mentor request (rejection)
+    const result = await Mentor.findByIdAndDelete(mentorId);
+    
+    if (!result) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Mentor not found' 
       });
     }
 
-    // Detach mentor profile from the user before removing
-    await User.findByIdAndUpdate(mentor.user, { $unset: { mentorProfile: '' } });
-    await mentor.deleteOne();
+    // Detach mentorProfile from user so they can re-apply
+    if (result.user) {
+      await User.findByIdAndUpdate(result.user, { $unset: { mentorProfile: 1 } });
+    }
 
-    res.status(200).json({
-      success: true,
-      message: 'Mentor request rejected and removed',
+    res.status(200).json({ 
+      success: true, 
+      message: 'Mentor request rejected successfully' 
     });
   } catch (error) {
-    next(error);
+    console.error('Error rejecting mentor:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to reject mentor request' 
+    });
   }
 };
 

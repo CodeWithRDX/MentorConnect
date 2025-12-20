@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from './components/ui/toaster';
+import SplineLoader from './components/SplineLoader';
 
 import Home from './pages/Home';
 import RoleSelection from './pages/RoleSelection';
@@ -10,7 +12,13 @@ import Register from './pages/Register';
 import Mentors from './pages/Mentors';
 import MentorDetail from './pages/MentorDetail';
 import MentorDashboard from './pages/MentorDashboard';
+import MentorAnalytics from './pages/MentorAnalytics';
+import MentorMessages from './pages/MentorMessages';
+import MentorEarnings from './pages/MentorEarnings';
 import MenteeDashboard from './pages/MenteeDashboard';
+import MenteeMessages from './pages/MenteeMessages';
+import Resources from './pages/Resources';
+import TrackGoals from './pages/TrackGoals';
 import AdminDashboard from './pages/AdminDashboard';
 import DatabaseViewer from './pages/DatabaseViewer';
 import MentorApply from './pages/MentorApply';
@@ -18,24 +26,80 @@ import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ProfileEdit from './pages/ProfileEdit';
+import IssueReport from './pages/IssueReport';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
 
 function App() {
+  const [showLoader, setShowLoader] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowLoader(false), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <AuthProvider>
+      <SplineLoader isOpen={showLoader} />
       <Router>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/select-role" element={<RoleSelection />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/register" element={<Register />} />
+          <Route
+            path="/"
+            element={
+              <PublicRoute>
+                <Home />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/select-role"
+            element={
+              <PublicRoute>
+                <RoleSelection />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/admin/login"
+            element={
+              <PublicRoute>
+                <AdminLogin />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/mentee/login"
+            element={
+              <PublicRoute>
+                <Login
+                  title="Welcome Back, Mentee!"
+                  subtitle="Log in to access your dashboard, view upcoming sessions, and continue your growth journey."
+                />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            }
+          />
           <Route path="/mentors" element={<Mentors />} />
           <Route path="/mentors/:id" element={<MentorDetail />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          
+
           <Route
             path="/mentor/apply"
             element={
@@ -53,10 +117,58 @@ function App() {
             }
           />
           <Route
+            path="/mentor/analytics"
+            element={
+              <ProtectedRoute requiredRole="mentor">
+                <MentorAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor/earnings"
+            element={
+              <ProtectedRoute requiredRole="mentor">
+                <MentorEarnings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor/messages"
+            element={
+              <ProtectedRoute requiredRole="mentor">
+                <MentorMessages />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/mentee/dashboard"
             element={
               <ProtectedRoute>
                 <MenteeDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentee/messages"
+            element={
+              <ProtectedRoute>
+                <MenteeMessages />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/resources"
+            element={
+              <ProtectedRoute>
+                <Resources />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/goals"
+            element={
+              <ProtectedRoute>
+                <TrackGoals />
               </ProtectedRoute>
             }
           />
@@ -73,6 +185,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/issues/new"
+            element={
+              <ProtectedRoute>
+                <IssueReport />
               </ProtectedRoute>
             }
           />
