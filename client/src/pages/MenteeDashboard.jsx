@@ -68,10 +68,10 @@ const MenteeDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col ">
       <Navbar />
       
-      <div className="flex-1 bg-neutral-50 py-12">
+      <div className="flex-1 bg-background text-foreground py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <motion.div
@@ -81,7 +81,7 @@ const MenteeDashboard = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-neutral-900 mb-2">
+                <h1 className="text-4xl font-bold text-foreground mb-2">
                   Welcome back, {user?.name?.split(' ')[0] || 'Entrepreneur'}!
                 </h1>
                 <p className="text-neutral-600">Manage your mentorship sessions and track your progress</p>
@@ -358,11 +358,11 @@ const MenteeDashboard = () => {
               </CardHeader>
               <CardContent>
                 {bookings.length === 0 ? (
-                  <p className="text-neutral-600 text-center py-8">No sessions booked yet</p>
+                  <p className="bg-background text-foreground text-center py-8">No sessions booked yet</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-neutral-50 border-b">
+                      <thead className=" text-foreground border-b">
                         <tr>
                           <th className="text-left p-3 font-semibold text-sm">Mentor</th>
                           <th className="text-left p-3 font-semibold text-sm">Date & Time</th>
