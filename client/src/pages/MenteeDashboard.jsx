@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Calendar, TrendingUp, Users, Star, MessageSquare } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { toast } from '../components/ui/toaster';
 
 const MenteeDashboard = () => {
   const { user } = useAuth();
@@ -19,13 +20,37 @@ const MenteeDashboard = () => {
     activeMentors: 0,
     averageRating: 4.9,
   });
+  const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       fetchBookings();
+      fetchIssues();
     }
   }, [user]);
+
+  const fetchIssues = async () => {
+    try {
+      const res = await api.get('/issues');
+      setIssues(res.data.data || []);
+    } catch (error) {
+      console.error('Fetch issues error', error);
+    }
+  };
+
+  const handleCancelBooking = async (id) => {
+    if (!confirm('Are you sure you want to cancel? This will remove the booking.')) return;
+    try {
+      await api.put(`/bookings/${id}/cancel`);
+      // Remove from local state immediately
+      setBookings(prev => prev.filter(b => b._id !== id));
+      toast('Booking cancelled and removed', 'info');
+    } catch (error) {
+      console.error('Cancel error', error);
+      toast('Failed to cancel booking', 'error');
+    }
+  };
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -36,9 +61,12 @@ const MenteeDashboard = () => {
       setBookings(allBookings);
 
       // Calculate stats
-      const upcoming = allBookings.filter(
-        b => new Date(b.sessionDate) > new Date() && b.status === 'confirmed'
-      ).length;
+      const upcoming = allBookings.filter(b => {
+        if (b.status !== 'confirmed') return false;
+        const end = getDateTime(b.sessionDate, b.sessionTime?.end);
+        return end && end > new Date();
+      }).length;
+
       const completed = allBookings.filter(b => b.status === 'completed').length;
       const activeMentors = new Set(allBookings.map(b => b.mentor?._id)).size;
 
@@ -55,9 +83,28 @@ const MenteeDashboard = () => {
     }
   };
 
-  const upcomingBookings = bookings.filter(
-    b => new Date(b.sessionDate) > new Date() && b.status !== 'cancelled'
-  );
+  const getDateTime = (dateStr, timeStr) => {
+    if (!dateStr || !timeStr) return null;
+    const date = new Date(dateStr);
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
+  const upcomingBookings = bookings.filter(b => {
+    if (b.status === 'cancelled') return false;
+    // If completed, not upcoming
+    if (b.status === 'completed') return false;
+
+    // Check if time has passed
+    const end = getDateTime(b.sessionDate, b.sessionTime?.end);
+    // It is upcoming if end time is in future OR if it is pending (regardless of time, until rejected)
+    // Actually strictly upcoming usually means verified future. 
+    // User said "if time exceeds... should not able to chat". 
+    // Use end time for expiry.
+    if (b.status === 'pending') return true;
+    return end && end > new Date();
+  });
 
   if (loading) {
     return (
@@ -70,7 +117,7 @@ const MenteeDashboard = () => {
   return (
     <div className="min-h-screen flex flex-col ">
       <Navbar />
-      
+
       <div className="flex-1 bg-background text-foreground py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -178,15 +225,14 @@ const MenteeDashboard = () => {
           </div>
 
           {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Upcoming Sessions & Chat */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            {/* Upcoming Sessions */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="lg:col-span-2 space-y-6"
+              className="lg:col-span-2"
             >
-              {/* Upcoming Sessions */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -210,104 +256,60 @@ const MenteeDashboard = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {upcomingBookings.slice(0, 5).map((booking) => (
-                        <motion.div
-                          key={booking._id}
-                          whileHover={{ x: 4 }}
-                          className="p-4 border border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-neutral-50 transition"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <p className="font-semibold text-neutral-900">
-                                {booking.topic || 'Mentoring Session'}
-                              </p>
-                              <p className="text-sm text-neutral-600 mt-1">
-                                with {booking.mentor?.user?.name}
-                              </p>
+                      {upcomingBookings.slice(0, 5).map((booking) => {
+                        const sessionEnd = getDateTime(booking.sessionDate, booking.sessionTime?.end);
+                        const canChat = booking.mentor?.user?._id && (booking.status === 'confirmed' || booking.status === 'completed') && (!sessionEnd || sessionEnd > new Date());
+                        return (
+                          <motion.div
+                            key={booking._id}
+                            whileHover={{ x: 4 }}
+                            className="p-4 border border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-neutral-50 transition"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <p className="font-semibold text-neutral-900">
+                                  {booking.topic || 'Mentoring Session'}
+                                </p>
+                                <p className="text-sm text-neutral-600 mt-1">
+                                  with {booking.mentor?.user?.name}
+                                </p>
+                              </div>
+                              <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                Upcoming
+                              </span>
                             </div>
-                            <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                              Upcoming
-                            </span>
-                          </div>
-                          <p className="text-sm text-neutral-600 mb-3">
-                            📅 {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start || 'TBD'}
-                          </p>
-                          <div className="flex gap-3">
-                            <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
-                              Join Call
-                            </Button>
-                            {booking.mentor?.user?._id && (
-                              <Button
-                                variant="outline"
-                                className="flex-1"
-                                onClick={() => navigate(`/mentee/messages?mentor=${booking.mentor.user._id}`)}
-                              >
-                                <MessageSquare className="h-4 w-4 mr-1" />
-                                Chat
+                            <p className="text-sm text-neutral-600 mb-3">
+                              📅 {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start || 'TBD'}
+                            </p>
+                            <div className="flex gap-3">
+                              <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
+                                Join Call
                               </Button>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))}
+                              {canChat && (
+                                <Button
+                                  variant="outline"
+                                  className="flex-1"
+                                  onClick={() => navigate(`/mentee/messages?mentor=${booking.mentor.user._id}`)}
+                                >
+                                  <MessageSquare className="h-4 w-4 mr-1" />
+                                  Chat
+                                </Button>
+                              )}
+                              {booking.status === 'pending' && (
+                                <Button
+                                  variant="destructive"
+                                  className="flex-1"
+                                  onClick={() => handleCancelBooking(booking._id)}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-
-              {/* Chat with Mentors */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MessageSquare className="mr-2" />
-                    Chat with Mentors
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(() => {
-                    const mentorsMap = new Map();
-                    bookings.forEach((booking) => {
-                      if (booking.mentor?.user && !mentorsMap.has(booking.mentor.user._id)) {
-                        mentorsMap.set(booking.mentor.user._id, booking.mentor.user);
-                      }
-                    });
-                    const uniqueMentors = Array.from(mentorsMap.values());
-
-                    if (uniqueMentors.length === 0) {
-                      return (
-                        <p className="text-neutral-500 text-center py-8">
-                          No mentors yet. Book a session to start chatting.
-                        </p>
-                      );
-                    }
-
-                    return (
-                      <div className="space-y-3">
-                        {uniqueMentors.slice(0, 5).map((mentor) => (
-                          <motion.div
-                            key={mentor._id}
-                            whileHover={{ x: 4 }}
-                            className="flex items-center gap-3 p-3 border border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-neutral-50 transition"
-                          >
-                            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-                              {mentor.name?.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-sm">{mentor.name}</p>
-                              <p className="text-xs text-neutral-600">{mentor.email}</p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => navigate(`/mentee/messages?mentor=${mentor._id}`)}
-                            >
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Chat
-                            </Button>
-                          </motion.div>
-                        ))}
-                      </div>
-                    );
-                  })()}
                 </CardContent>
               </Card>
             </motion.div>
@@ -345,6 +347,121 @@ const MenteeDashboard = () => {
             </motion.div>
           </div>
 
+          {/* Chat with Mentors - Full Width */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+            className="mb-8"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageSquare className="mr-2" />
+                  Chat with Mentors
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const mentorsMap = new Map();
+                  const now = new Date();
+                  bookings.forEach((booking) => {
+                    if (booking.mentor?.user && !mentorsMap.has(booking.mentor.user._id)) {
+                      const sessionEnd = getDateTime(booking.sessionDate, booking.sessionTime?.end);
+                      // Only confirmed/completed sessions that haven't expired allow chat
+                      if ((booking.status === 'confirmed' || booking.status === 'completed') && (!sessionEnd || sessionEnd > now)) {
+                        mentorsMap.set(booking.mentor.user._id, booking.mentor.user);
+                      }
+                    }
+                  });
+                  const uniqueMentors = Array.from(mentorsMap.values());
+
+                  if (uniqueMentors.length === 0) {
+                    return (
+                      <p className="text-neutral-500 text-center py-8">
+                        No mentors yet. Book a session to start chatting.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {uniqueMentors.slice(0, 5).map((mentor) => (
+                        <motion.div
+                          key={mentor._id}
+                          whileHover={{ x: 4 }}
+                          className="flex items-center gap-3 p-3 border border-neutral-200 rounded-lg hover:border-primary-300 hover:bg-neutral-50 transition"
+                        >
+                          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+                            {mentor.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">{mentor.name}</p>
+                            <p className="text-xs text-neutral-600">{mentor.email}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/mentee/messages?mentor=${mentor._id}`)}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Chat
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* My Issues - Full Width */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.68 }}
+            className="mb-8"
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2" />
+                    My Issues
+                  </CardTitle>
+                  <Link to="/report-issue">
+                    <Button size="sm" variant="outline">Report Issue</Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {issues.length === 0 ? (
+                  <p className="text-neutral-500 text-center py-8">No issues reported</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {issues.map(issue => (
+                      <div key={issue._id} className="p-4 border rounded-lg flex flex-col justify-between text-sm h-full hover:bg-neutral-50 transition">
+                        <div>
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="font-semibold text-base">{issue.title}</p>
+                            <span className={`px-2 py-1 rounded text-xs capitalize ${issue.status === 'closed' ? 'bg-green-100 text-green-800' :
+                              issue.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                              {issue.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <p className="text-neutral-600 line-clamp-2">{issue.description || 'No description provided.'}</p>
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-4 pt-2 border-t">{new Date(issue.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
           {/* All Sessions */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -381,18 +498,17 @@ const MenteeDashboard = () => {
                             </td>
                             <td className="p-3 text-sm text-neutral-600">{booking.topic || '-'}</td>
                             <td className="p-3 text-sm">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
                                 booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                                booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                'bg-neutral-100 text-neutral-800'
-                              }`}>
+                                  booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                    'bg-neutral-100 text-neutral-800'
+                                }`}>
                                 {booking.status}
                               </span>
                             </td>
                             <td className="p-3 text-sm font-semibold">${booking.amount || '0'}</td>
                             <td className="p-3 text-sm">
-                              {booking.mentor?.user?._id && (
+                              {booking.mentor?.user?._id && (booking.status === 'confirmed' || booking.status === 'completed') && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -402,7 +518,17 @@ const MenteeDashboard = () => {
                                   Chat
                                 </Button>
                               )}
+                              {booking.status === 'pending' && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleCancelBooking(booking._id)}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
                             </td>
+
                           </tr>
                         ))}
                       </tbody>
@@ -413,10 +539,10 @@ const MenteeDashboard = () => {
             </Card>
           </motion.div>
         </div>
-      </div>
+      </div >
 
       <Footer />
-    </div>
+    </div >
   );
 };
 

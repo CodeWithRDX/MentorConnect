@@ -1,4 +1,5 @@
 import Issue from '../models/Issue.js';
+import sendEmail from '../utils/sendEmail.js';
 
 // Create issue (mentee/mentor/admin)
 export const createIssue = async (req, res, next) => {
@@ -42,10 +43,29 @@ export const updateIssue = async (req, res, next) => {
       req.params.id,
       update,
       { new: true, runValidators: true },
-    );
+    ).populate('user', 'email name');
+
     if (!issue) {
       return res.status(404).json({ success: false, message: 'Issue not found' });
     }
+
+    // Send email to user
+    try {
+      await sendEmail({
+        email: issue.user.email,
+        subject: `Issue Updated: ${issue.title}`,
+        message: `
+                <h1>Issue Update</h1>
+                <p>Your reported issue "<strong>${issue.title}</strong>" has been updated.</p>
+                <p><strong>Status:</strong> ${issue.status}</p>
+                <p><strong>Priority:</strong> ${issue.priority}</p>
+                <p><strong>Remark:</strong> ${issue.remark || 'No remark'}</p>
+            `,
+      });
+    } catch (err) {
+      console.error('Email sending failed', err);
+    }
+
     res.status(200).json({ success: true, data: issue });
   } catch (error) {
     next(error);

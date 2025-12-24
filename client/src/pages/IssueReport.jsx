@@ -43,11 +43,11 @@ const IssueReport = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 bg-neutral-50 py-10">
+      <main className="flex-1 bg-background py-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white shadow rounded-xl p-6 sm:p-8 border border-neutral-100">
-            <h1 className="text-2xl font-bold text-neutral-900 mb-2">Report an Issue</h1>
-            <p className="text-neutral-600 mb-6">Tell us what went wrong. Admins will review and act.</p>
+          <div className="bg-forground shadow rounded-xl p-6 sm:p-8 border border-neutral-100">
+            <h1 className="text-2xl font-bold text-forground mb-2">Report an Issue</h1>
+            <p className="text-forground mb-6">Tell us what went wrong. Admins will review and act.</p>
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <Label htmlFor="title">Title</Label>
@@ -58,6 +58,7 @@ const IssueReport = () => {
                   value={form.title}
                   onChange={handleChange}
                   required
+                  className="outline-none"
                 />
               </div>
               <div>
@@ -70,6 +71,7 @@ const IssueReport = () => {
                   value={form.description}
                   onChange={handleChange}
                   required
+                  className="outline-none"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -80,7 +82,7 @@ const IssueReport = () => {
                     name="type"
                     value={form.type}
                     onChange={handleChange}
-                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm bg-background outline-none"
                   >
                     <option value="technical">Technical</option>
                     <option value="payment">Payment</option>
@@ -95,7 +97,7 @@ const IssueReport = () => {
                     name="priority"
                     value={form.priority}
                     onChange={handleChange}
-                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm bg-background outline-none"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>

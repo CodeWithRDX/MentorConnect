@@ -3,6 +3,21 @@ import sendEmail from '../utils/sendEmail.js';
 import { emailVerificationTemplate, passwordResetTemplate } from '../utils/emailTemplates.js';
 import crypto from 'crypto';
 
+// @desc    Get user by ID
+// @route   GET /api/auth/:id
+// @access  Private
+export const getUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id).select('name email avatar role');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.status(200).json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
@@ -148,9 +163,9 @@ export const login = async (req, res, next) => {
     const options = {
       expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
       httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    // Allow cross-site requests from dev client (different port)
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      // Allow cross-site requests from dev client (different port)
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     };
 
     res.cookie('token', token, options);
@@ -197,7 +212,7 @@ export const logout = async (req, res) => {
 // @access  Private
 export const getMe = async (req, res) => {
   const user = await User.findById(req.user.id).populate('mentorProfile');
-  
+
   res.status(200).json({
     success: true,
     data: { user },

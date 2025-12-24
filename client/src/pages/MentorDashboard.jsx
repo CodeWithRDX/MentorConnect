@@ -110,8 +110,8 @@ const MentorDashboard = () => {
           completedSessions: completed,
           activeMentees: activeMentees,
           totalEarnings: response.data.data
-            .filter(b => b.status === 'completed' && b.paymentStatus === 'paid')
-            .reduce((sum, b) => sum + (b.amount || 0), 0),
+            .filter(b => b.status === 'completed') // User wants earnings from bookings they *gave* (completed)
+            .reduce((sum, b) => sum + (Number(b.amount) || 0), 0),
           averageRating: 4.9,
         });
       }
@@ -135,28 +135,81 @@ const MentorDashboard = () => {
     };
   }, []);
 
-  const handleUpdateAvailability = async () => {
-    if (!mentorProfileId) return toast('Mentor profile missing', 'error');
-    setActionLoading(true);
-    const defaultAvailability = {
-      monday: [{ start: '09:00', end: '17:00' }],
-      tuesday: [{ start: '09:00', end: '17:00' }],
-      wednesday: [{ start: '09:00', end: '17:00' }],
-      thursday: [{ start: '09:00', end: '17:00' }],
-      friday: [{ start: '09:00', end: '17:00' }],
-      saturday: [],
-      sunday: [],
-    };
+  const [availability, setAvailability] = useState({
+    monday: [{ start: '09:00', end: '17:00' }],
+    tuesday: [{ start: '09:00', end: '17:00' }],
+    wednesday: [{ start: '09:00', end: '17:00' }],
+    thursday: [{ start: '09:00', end: '17:00' }],
+    friday: [{ start: '09:00', end: '17:00' }],
+    saturday: [],
+    sunday: [],
+  });
+  const [editingAvailability, setEditingAvailability] = useState(false);
+
+  useEffect(() => {
+    if (mentorProfileData?.availability) {
+      setAvailability(mentorProfileData.availability);
+    }
+  }, [mentorProfileData]);
+
+  const handleApproveBooking = async (bookingId) => {
     try {
-      await api.put(`/mentors/${mentorProfileId}`, { availability: defaultAvailability });
-      toast('Availability updated to default hours', 'success');
+      await api.put(`/bookings/${bookingId}/approve`);
+      toast('Booking approved', 'success');
+      fetchBookings(mentorProfileId);
     } catch (error) {
-      console.error('Error updating availability', error);
-      toast(error.response?.data?.message || 'Failed to update availability', 'error');
+      toast('Failed to approve booking', 'error');
+    }
+  };
+
+  const handleRejectBooking = async (bookingId) => {
+    if (!confirm('Are you sure you want to reject this booking?')) return;
+    try {
+      await api.put(`/bookings/${bookingId}/reject`);
+      toast('Booking rejected', 'info');
+      fetchBookings(mentorProfileId);
+    } catch (error) {
+      toast('Failed to reject booking', 'error');
+    }
+  };
+
+  const saveAvailability = async () => {
+    try {
+      setActionLoading(true);
+      await api.put(`/mentors/${mentorProfileId}`, { availability });
+      toast('Availability updated', 'success');
+      setEditingAvailability(false);
+      // Update local profile data
+      if (mentorProfileData) {
+        setMentorProfileData({ ...mentorProfileData, availability });
+      }
+    } catch (error) {
+      toast('Failed to update availability', 'error');
     } finally {
       setActionLoading(false);
     }
   };
+
+  const handleAvailabilityChange = (day, field, value) => {
+    setAvailability(prev => {
+      const newDay = [...(prev[day] || [])];
+      if (newDay.length === 0) newDay.push({ start: '09:00', end: '17:00' });
+
+      newDay[0] = { ...newDay[0], [field]: value };
+      return { ...prev, [day]: newDay };
+    });
+  };
+
+  const toggleDayAvailability = (day) => {
+    setAvailability(prev => {
+      const isEnabled = prev[day] && prev[day].length > 0;
+      return {
+        ...prev,
+        [day]: isEnabled ? [] : [{ start: '09:00', end: '17:00' }]
+      };
+    });
+  };
+
 
   const handleShareResources = async () => {
     if (!mentorProfileId) return toast('Mentor profile missing', 'error');
@@ -266,6 +319,15 @@ const MentorDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <AvailabilityEditor
+        isOpen={editingAvailability}
+        onClose={() => setEditingAvailability(false)}
+        availability={availability}
+        onToggleDay={toggleDayAvailability}
+        onChange={handleAvailabilityChange}
+        onSave={saveAvailability}
+        loading={actionLoading}
+      />
       <Navbar />
 
       <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 py-12">
@@ -442,6 +504,44 @@ const MentorDashboard = () => {
                 </CardContent>
               </Card>
 
+
+              {/* Pending Requests */}
+              <Card className="bg-card text-card-foreground border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-foreground">
+                    <Users className="mr-2" />
+                    Pending Requests
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {bookings.filter(b => b.status === 'pending').length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No pending requests</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {bookings
+                        .filter(b => b.status === 'pending')
+                        .map((booking) => (
+                          <motion.div
+                            key={booking._id}
+                            className="flex items-center justify-between p-4 border border-border rounded-lg bg-yellow-50 dark:bg-yellow-900/10"
+                          >
+                            <div className="flex-1">
+                              <p className="font-semibold text-foreground">{booking.mentee?.name}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                📅 {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">Topic: {booking.notes || 'No notes'}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => handleApproveBooking(booking._id)} className="bg-green-600 hover:bg-green-700">Approve</Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleRejectBooking(booking._id)}>Reject</Button>
+                            </div>
+                          </motion.div>
+                        ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
               {/* Chat with Entrepreneurs */}
               <Card className="bg-card text-card-foreground border-border">
                 <CardHeader>
@@ -456,7 +556,14 @@ const MentorDashboard = () => {
                     const menteesMap = new Map();
                     bookings.forEach(booking => {
                       if (booking.mentee && !menteesMap.has(booking.mentee._id)) {
-                        menteesMap.set(booking.mentee._id, booking.mentee);
+                        // Only allow chat if confirmed or completed
+                        const hasApprovedBooking = bookings.some(b =>
+                          b.mentee?._id === booking.mentee._id &&
+                          (b.status === 'confirmed' || b.status === 'completed')
+                        );
+                        if (hasApprovedBooking) {
+                          menteesMap.set(booking.mentee._id, booking.mentee);
+                        }
                       }
                     });
                     const uniqueMentees = Array.from(menteesMap.values());
@@ -521,11 +628,11 @@ const MentorDashboard = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button
-                    onClick={handleUpdateAvailability}
+                    onClick={() => setEditingAvailability(true)}
                     disabled={actionLoading}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
                   >
-                    Update Availability
+                    Manage Availability
                   </Button>
                   <Button
                     onClick={handleShareResources}
@@ -558,9 +665,67 @@ const MentorDashboard = () => {
       </div>
 
       <Footer />
-    </div>
+    </div >
   );
 };
+
+function AvailabilityEditor({ isOpen, onClose, availability, onToggleDay, onChange, onSave, loading }) {
+  if (!isOpen) return null;
+  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <Card className="w-full max-w-2xl bg-white dark:bg-neutral-900 border-border max-h-[90vh] overflow-y-auto">
+        <CardHeader>
+          <CardTitle>Manage Availability</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {days.map(day => {
+            const isEnabled = availability[day] && availability[day].length > 0;
+            const slot = isEnabled ? availability[day][0] : { start: '09:00', end: '17:00' };
+
+            return (
+              <div key={day} className="flex items-center gap-4 p-2 border-b border-border last:border-0">
+                <div className="w-24 font-medium capitalize flex items-center gap-2">
+                  <input type="checkbox" checked={isEnabled} onChange={() => onToggleDay(day)} />
+                  {day}
+                </div>
+                {isEnabled && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-col">
+                      <label className="text-xs text-muted-foreground">Start</label>
+                      <input
+                        type="time"
+                        value={slot.start}
+                        onChange={(e) => onChange(day, 'start', e.target.value)}
+                        className="border rounded p-1 text-sm bg-transparent"
+                      />
+                    </div>
+                    <span>-</span>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-muted-foreground">End</label>
+                      <input
+                        type="time"
+                        value={slot.end}
+                        onChange={(e) => onChange(day, 'end', e.target.value)}
+                        className="border rounded p-1 text-sm bg-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+                {!isEnabled && <span className="text-sm text-muted-foreground italic">Unavailable</span>}
+              </div>
+            );
+          })}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={onSave} disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default MentorDashboard;
 

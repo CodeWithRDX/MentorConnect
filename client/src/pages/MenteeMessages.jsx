@@ -29,11 +29,33 @@ const MenteeMessages = () => {
         setLoadingContacts(true);
         const res = await api.get('/messages/contacts');
         const allContacts = (res.data?.data || []).filter((c) => c.role === 'mentor');
-        setContacts(allContacts);
 
-        if (!mentorFromQuery && allContacts.length > 0) {
-          setActiveMentorId(allContacts[0]._id);
+        let initialActiveId = '';
+
+        if (mentorFromQuery) {
+          const exists = allContacts.find(c => c._id === mentorFromQuery);
+          if (exists) {
+            initialActiveId = mentorFromQuery;
+          } else {
+            // Fetch mentor details if not in contact list
+            try {
+              const userRes = await api.get(`/auth/${mentorFromQuery}`);
+              const userData = userRes.data.data;
+              if (userData) {
+                allContacts.unshift({ ...userData, role: 'mentor' });
+                initialActiveId = mentorFromQuery;
+              }
+            } catch (e) {
+              console.error('Failed to fetch mentor details', e);
+            }
+          }
+        } else if (allContacts.length > 0) {
+          initialActiveId = allContacts[0]._id;
         }
+
+        setContacts(allContacts);
+        if (initialActiveId) setActiveMentorId(initialActiveId);
+
       } catch (error) {
         console.error('Fetch contacts error', error);
       } finally {
@@ -116,11 +138,10 @@ const MenteeMessages = () => {
                     <button
                       key={mentor._id}
                       onClick={() => setActiveMentorId(mentor._id)}
-                      className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
-                        activeMentorId === mentor._id
+                      className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${activeMentorId === mentor._id
                           ? 'border-primary-500 bg-primary-50'
                           : 'border-neutral-200 hover:border-primary-300 hover:bg-neutral-50'
-                      }`}
+                        }`}
                     >
                       <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
                         {mentor.name?.charAt(0).toUpperCase()}
@@ -175,11 +196,10 @@ const MenteeMessages = () => {
                           className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[70%] rounded-2xl px-3 py-2 ${
-                              isMe
+                            className={`max-w-[70%] rounded-2xl px-3 py-2 ${isMe
                                 ? 'bg-primary-600 text-white rounded-br-sm'
                                 : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-bl-sm'
-                            }`}
+                              }`}
                           >
                             <p>{msg.body}</p>
                             <p className="mt-1 text-[10px] opacity-70">

@@ -204,16 +204,48 @@ const MentorDetail = () => {
                       className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
                       min={new Date().toISOString().split('T')[0]}
                     />
+                    {(() => {
+                      const date = new Date(bookingData.sessionDate);
+                      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                      const slots = mentor?.availability?.[dayName];
+                      if (slots && slots.length > 0) {
+                        return (
+                          <p className="text-xs text-green-600 mt-1">
+                            Available: {slots.map(s => `${s.start} - ${s.end}`).join(', ')}
+                          </p>
+                        )
+                      } else {
+                        return <p className="text-xs text-neutral-500 mt-1">Standard Hours: 09:00 - 17:00</p>
+                      }
+                    })()}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Start Time</label>
                     <input
                       type="time"
                       value={bookingData.sessionTime.start}
-                      onChange={(e) => setBookingData({
-                        ...bookingData,
-                        sessionTime: { ...bookingData.sessionTime, start: e.target.value }
-                      })}
+                      onChange={(e) => {
+                        const time = e.target.value;
+                        const selectedDate = new Date(bookingData.sessionDate);
+                        const now = new Date();
+
+                        // If selected date is today, check time
+                        if (selectedDate.toDateString() === now.toDateString()) {
+                          const [hours, minutes] = time.split(':').map(Number);
+                          const selectedTime = new Date(selectedDate);
+                          selectedTime.setHours(hours, minutes, 0, 0);
+
+                          if (selectedTime < now) {
+                            toast('Cannot book time in the past', 'error');
+                            return;
+                          }
+                        }
+
+                        setBookingData({
+                          ...bookingData,
+                          sessionTime: { ...bookingData.sessionTime, start: time }
+                        })
+                      }}
                       className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
                     />
                   </div>
