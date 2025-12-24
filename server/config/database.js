@@ -5,7 +5,7 @@ const connectDB = async () => {
     // Prefer env override but fall back to local dev database to avoid undefined URI crashes
     // Support both MONGODB_URI and MONGO_URI
     const envUri = (process.env.MONGODB_URI || process.env.MONGO_URI)?.trim();
-    const mongoUri = envUri || "mongodb+srv://codewithrdx_db_user:admin123@cluster0.rhwe2rl.mongodb.net/mentorconnect?retryWrites=true&w=majority";
+    const mongoUri = envUri || "mongodb://localhost:27017";
 
     // Warn (not crash) when falling back so developers know to configure .env
     if (!envUri) {

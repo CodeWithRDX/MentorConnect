@@ -10,7 +10,7 @@ dotenv.config();
 
 const seedData = async () => {
   try {
-    const envUri = process.env.MONGODB_URI?.trim() || 'mongodb+srv://codewithrdx_db_user:admin123@cluster0.rhwe2rl.mongodb.net/mentorconnect?retryWrites=true&w=majority';
+    const envUri = process.env.MONGODB_URI?.trim() || "mongodb://localhost:27017";
     await mongoose.connect(envUri);
     console.log(`✅ Connected to MongoDB @ ${envUri}`);
 
