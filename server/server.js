@@ -18,7 +18,9 @@ import messageRoutes from './routes/messageRoutes.js';
 dotenv.config();
 
 // Connect to database
-connectDB();
+// Note: In serverless (Vercel), top-level awaits are supported in modules.
+// We await this to ensure we crash early if DB fails, or handle it.
+await connectDB();
 
 const app = express();
 
