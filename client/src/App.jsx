@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from './components/ui/toaster';
-import SplineLoader from './components/SplineLoader';
+import Loader from './components/Loader';
+import { AnimatePresence } from 'framer-motion';
 
 import Home from './pages/Home';
 import RoleSelection from './pages/RoleSelection';
@@ -31,16 +32,21 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
 function App() {
-  const [showLoader, setShowLoader] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => setShowLoader(false), 5000);
-    return () => clearTimeout(t);
+    // Simulate initial loading for smooth transition
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
     <AuthProvider>
-      <SplineLoader isOpen={showLoader} />
+      <AnimatePresence>
+        {isLoading && <Loader isLoading={isLoading} />}
+      </AnimatePresence>
       <Router>
         <Routes>
           <Route

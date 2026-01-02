@@ -8,6 +8,7 @@ import Footer from '../components/Footer';
 import GetStartedModal from '../components/GetStartedModal';
 import { ArrowRight, Users, BookOpen, Award, Star, CheckCircle, DollarSign } from 'lucide-react';
 import api from '../utils/api';
+import HeroImage from '../assets/mentorship_hero.png';
 
 const Home = () => {
   const { user } = useAuth();
@@ -132,11 +133,10 @@ const Home = () => {
             >
               <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/20 via-purple-500/10 to-amber-400/10 blur-3xl rounded-3xl" />
               <div className="relative h-full w-full rounded-3xl overflow-hidden border border-white/40 dark:border-primary-900/60 shadow-2xl bg-neutral-900/90">
-                {/* Spline 3D Animation */}
-                <spline-viewer 
-                  url={import.meta.env.VITE_SPLINE_SCENE_URL || "https://prod.spline.design/7NZHW3H-6jQEOxOn/scene.splinecode"}
-                  className="h-full w-full"
-                  style={{ width: '100%', height: '100%' }}
+                <img
+                  src={HeroImage}
+                  alt="Professional Mentorship"
+                  className="h-full w-full object-cover"
                 />
               </div>
               <div className="absolute -bottom-6 left-6 right-6 flex items-center justify-between bg-white/90 dark:bg-neutral-900/90 border border-border rounded-2xl px-4 py-3 shadow-lg backdrop-blur">
@@ -146,7 +146,7 @@ const Home = () => {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Interactive 3D powered by Spline</span>
+                  <span>Verified Professionals</span>
                 </div>
               </div>
             </motion.div>
@@ -232,7 +232,7 @@ const Home = () => {
         </div>
       </section>
 
-      
+
 
       {/* Testimonials */}
       <section className="py-20 bg-background">
@@ -318,10 +318,10 @@ const Home = () => {
                   isCarouselPaused
                     ? { duration: 0 }
                     : {
-                        duration: 30,
-                        ease: 'linear',
-                        repeat: Infinity,
-                      }
+                      duration: 30,
+                      ease: 'linear',
+                      repeat: Infinity,
+                    }
                 }
               >
                 {[...bestMentors, ...bestMentors].map((mentor, index) => (
