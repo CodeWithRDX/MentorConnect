@@ -207,11 +207,6 @@ const Navbar = () => {
                       Login
                     </Button>
                   </Link>
-                  <Link to="/admin/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="ghost" size="sm" className="w-full text-slate-900">
-                      Admin Login
-                    </Button>
-                  </Link>
                   <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
                     <Button size="sm" className="w-full">
                       Sign Up
