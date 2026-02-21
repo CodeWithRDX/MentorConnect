@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { Toaster } from './components/ui/toaster';
 import Loader from './components/Loader';
 import { AnimatePresence } from 'framer-motion';
+import { Analytics } from '@vercel/analytics/react';
 
 import Home from './pages/Home';
 import RoleSelection from './pages/RoleSelection';
@@ -212,6 +213,7 @@ function App() {
           />
         </Routes>
         <Toaster />
+        <Analytics />
       </Router>
     </AuthProvider>
   );
