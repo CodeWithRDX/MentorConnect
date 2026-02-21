@@ -9,6 +9,16 @@
   <title>MentorConnect - Virtual Mentorship Platform</title>
   <meta name="description" content="Provides Mentorship to enterpreneurs from industry experts and if you want to become a mentor then you can also register">
   <meta name="keywords" content="mentor connect, mentorship, mentors, portfolio, mern developer, raushan kumar">
+  <script>
+    // Apply dark mode before render to avoid flash of light content.
+    // Dark is the default; only switch to light if user explicitly chose it.
+    (function () {
+      var stored = localStorage.getItem('theme');
+      if (stored !== 'light') {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link

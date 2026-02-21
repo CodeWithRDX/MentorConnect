@@ -11,8 +11,9 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('theme') === 'dark';
+    if (typeof window === 'undefined') return true;
+    // Default to dark; only go light if user explicitly stored 'light'
+    return localStorage.getItem('theme') !== 'light';
   });
 
   useEffect(() => {
@@ -51,9 +52,19 @@ const Navbar = () => {
                 Home
               </Link>
             )}
+            {!user && (
+              <Link to="/about" className="text-neutral-700 dark:text-neutral-100 hover:text-primary-500 dark:hover:text-primary-300 transition">
+                About
+              </Link>
+            )}
             {(!user || user.role === 'mentee') && (
               <Link to="/mentors" className="text-neutral-700 dark:text-neutral-100 hover:text-primary-500 dark:hover:text-primary-300 transition">
                 Find Mentors
+              </Link>
+            )}
+            {!user && (
+              <Link to="/contact" className="text-neutral-700 dark:text-neutral-100 hover:text-primary-500 dark:hover:text-primary-300 transition">
+                Contact
               </Link>
             )}
 
@@ -148,6 +159,15 @@ const Navbar = () => {
                   Home
                 </Link>
               )}
+              {!user && (
+                <Link
+                  to="/about"
+                  className="block text-neutral-700 dark:text-neutral-200 hover:text-primary-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  About
+                </Link>
+              )}
               {(!user || user.role === 'mentee') && (
                 <Link
                   to="/mentors"
@@ -155,6 +175,15 @@ const Navbar = () => {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Find Mentors
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/contact"
+                  className="block text-neutral-700 dark:text-neutral-200 hover:text-primary-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Contact
                 </Link>
               )}
               <Button

@@ -1,9 +1,11 @@
+import http from 'http';
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import connectDB from './config/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import initSocket from './socket/index.js';
 
 // Routes
 import authRoutes from './routes/authRoutes.js';
@@ -13,13 +15,12 @@ import adminRoutes from './routes/adminRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
 import goalRoutes from './routes/goalRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 
-// Load env vars
+// Load env vars first so everything below can use them
 dotenv.config();
 
 // Connect to database
-// Note: In serverless (Vercel), top-level awaits are supported in modules.
-// We await this to ensure we crash early if DB fails, or handle it.
 await connectDB();
 
 const app = express();
@@ -29,7 +30,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-  // Allow common localhost origins in dev; tighten via FRONTEND_URL in prod
   origin: (origin, callback) => {
     const allowed =
       !origin ||
@@ -41,10 +41,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// Make uploads folder static
+// Static uploads
 app.use('/uploads', express.static('uploads'));
 
-// Routes
+// REST Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -52,24 +52,25 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running',
-  });
+  res.status(200).json({ success: true, message: 'Server is running' });
 });
 
 // Error handler
 app.use(errorHandler);
 
-// Keep default in sync with client proxy (vite.config.js) and README
-const PORT = process.env.PORT || 5000;
+// ── HTTP server + Socket.IO ──────────────────────────────────────────────────
+const httpServer = http.createServer(app);
 
-app.listen(PORT, () => {
+// Attach Socket.IO — returns the io instance (useful for emitting from controllers later)
+initSocket(httpServer);
+
+const PORT = process.env.PORT || 5000;
+httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
 export default app;
-

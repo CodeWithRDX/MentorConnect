@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { Toaster } from './components/ui/toaster';
 import Loader from './components/Loader';
 import { AnimatePresence } from 'framer-motion';
@@ -29,6 +30,11 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ProfileEdit from './pages/ProfileEdit';
 import IssueReport from './pages/IssueReport';
+import AboutUs from './pages/AboutUs';
+import FAQ from './pages/FAQ';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Contact from './pages/Contact';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
@@ -45,176 +51,183 @@ function App() {
 
   return (
     <AuthProvider>
-      <AnimatePresence>
-        {isLoading && <Loader isLoading={isLoading} />}
-      </AnimatePresence>
-      <Router>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <PublicRoute>
-                <Home />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/select-role"
-            element={
-              <PublicRoute>
-                <RoleSelection />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/admin/login"
-            element={
-              <PublicRoute>
-                <AdminLogin />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/mentee/login"
-            element={
-              <PublicRoute>
-                <Login
-                  title="Welcome Back, Mentee!"
-                  subtitle="Log in to access your dashboard, view upcoming sessions, and continue your growth journey."
-                />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            }
-          />
-          <Route path="/mentors" element={<Mentors />} />
-          <Route path="/mentors/:id" element={<MentorDetail />} />
-          <Route path="/verify-email/:token" element={<VerifyEmail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <SocketProvider>
+        <AnimatePresence>
+          {isLoading && <Loader isLoading={isLoading} />}
+        </AnimatePresence>
+        <Router>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <Home />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/select-role"
+              element={
+                <PublicRoute>
+                  <RoleSelection />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/admin/login"
+              element={
+                <PublicRoute>
+                  <AdminLogin />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/mentee/login"
+              element={
+                <PublicRoute>
+                  <Login
+                    title="Welcome Back, Mentee!"
+                    subtitle="Log in to access your dashboard, view upcoming sessions, and continue your growth journey."
+                  />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicRoute>
+                  <Register />
+                </PublicRoute>
+              }
+            />
+            <Route path="/mentors" element={<Mentors />} />
+            <Route path="/mentors/:id" element={<MentorDetail />} />
+            <Route path="/verify-email/:token" element={<VerifyEmail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/contact" element={<Contact />} />
 
-          <Route
-            path="/mentor/apply"
-            element={
-              <ProtectedRoute>
-                <MentorApply />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentor/dashboard"
-            element={
-              <ProtectedRoute requiredRole="mentor">
-                <MentorDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentor/analytics"
-            element={
-              <ProtectedRoute requiredRole="mentor">
-                <MentorAnalytics />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentor/earnings"
-            element={
-              <ProtectedRoute requiredRole="mentor">
-                <MentorEarnings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentor/messages"
-            element={
-              <ProtectedRoute requiredRole="mentor">
-                <MentorMessages />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentee/dashboard"
-            element={
-              <ProtectedRoute>
-                <MenteeDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mentee/messages"
-            element={
-              <ProtectedRoute>
-                <MenteeMessages />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/resources"
-            element={
-              <ProtectedRoute>
-                <Resources />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/goals"
-            element={
-              <ProtectedRoute>
-                <TrackGoals />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile/edit"
-            element={
-              <ProtectedRoute>
-                <ProfileEdit />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/issues/new"
-            element={
-              <ProtectedRoute>
-                <IssueReport />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/database"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <DatabaseViewer />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-        <Toaster />
-        <Analytics />
-      </Router>
+            <Route
+              path="/mentor/apply"
+              element={
+                <ProtectedRoute>
+                  <MentorApply />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentor/dashboard"
+              element={
+                <ProtectedRoute requiredRole="mentor">
+                  <MentorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentor/analytics"
+              element={
+                <ProtectedRoute requiredRole="mentor">
+                  <MentorAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentor/earnings"
+              element={
+                <ProtectedRoute requiredRole="mentor">
+                  <MentorEarnings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentor/messages"
+              element={
+                <ProtectedRoute requiredRole="mentor">
+                  <MentorMessages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentee/dashboard"
+              element={
+                <ProtectedRoute>
+                  <MenteeDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mentee/messages"
+              element={
+                <ProtectedRoute>
+                  <MenteeMessages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/resources"
+              element={
+                <ProtectedRoute>
+                  <Resources />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/goals"
+              element={
+                <ProtectedRoute>
+                  <TrackGoals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <ProfileEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/issues/new"
+              element={
+                <ProtectedRoute>
+                  <IssueReport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/database"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <DatabaseViewer />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+          <Toaster />
+          <Analytics />
+        </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }

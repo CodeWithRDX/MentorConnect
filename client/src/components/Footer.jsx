@@ -27,35 +27,35 @@ const Footer = () => {
               <li>
                 <Link to="/register" className="hover:text-white transition">Sign Up</Link>
               </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Resources</h4>
-            <ul className="space-y-2 text-sm text-neutral-400">
               <li>
-                <Link to="#" className="hover:text-white transition">About Us</Link>
-              </li>
-              <li>
-                <Link to="#" className="hover:text-white transition">Contact</Link>
-              </li>
-              <li>
-                <Link to="#" className="hover:text-white transition">Privacy Policy</Link>
-              </li>
-              <li>
-                <Link to="#" className="hover:text-white transition">Terms of Service</Link>
+                <Link to="/about" className="hover:text-white transition">About Us</Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Help and Support</h4>
+            <h4 className="font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm text-neutral-400">
+              <li>
+                <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-4">Help & Support</h4>
+            <ul className="space-y-2 text-sm text-neutral-400">
+              <li>
+                <Link to="/faq" className="hover:text-white transition">FAQ</Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-white transition">Contact Us</Link>
+              </li>
               <li>
                 <Link to="/issues/new" className="hover:text-white transition">Report Issue</Link>
-              </li>
-              <li>
-                <Link to="#" className="hover:text-white transition">FAQ</Link>
               </li>
             </ul>
           </div>
@@ -80,7 +80,13 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-neutral-800 mt-8 pt-8 text-center text-sm text-neutral-400">
-          <p>&copy; {new Date().getFullYear()} MentorConnect. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} MentorConnect. All rights reserved.
+            {' · '}
+            <Link to="/privacy" className="hover:text-white transition">Privacy</Link>
+            {' · '}
+            <Link to="/terms" className="hover:text-white transition">Terms</Link>
+          </p>
         </div>
       </div>
     </footer>
@@ -88,4 +94,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

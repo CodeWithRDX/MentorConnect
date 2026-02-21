@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
 const MessageSchema = new mongoose.Schema(
   {
     from: {
@@ -16,6 +18,13 @@ const MessageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: [2000, 'Message body cannot exceed 2000 characters'],
+    },
+    // TTL field — MongoDB auto-deletes the document once this date is reached
+    expiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + THIRTY_DAYS_MS),
+      index: { expireAfterSeconds: 0 },
     },
   },
   {
@@ -26,5 +35,3 @@ const MessageSchema = new mongoose.Schema(
 const Message = mongoose.model('Message', MessageSchema);
 
 export default Message;
-
-
