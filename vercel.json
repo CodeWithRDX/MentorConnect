@@ -31,6 +31,10 @@
             "dest": "client/robots.txt"
         },
         {
+            "src": "/(.*)",
+            "dest": "client/$1"
+        },
+        {
             "handle": "filesystem"
         },
         {
