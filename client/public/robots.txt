@@ -1,0 +1,28 @@
+User-agent: *
+Allow: /
+
+# Public pages
+Allow: /mentors
+Allow: /about
+Allow: /contact
+Allow: /faq
+Allow: /terms
+Allow: /privacy
+Allow: /login
+Allow: /register
+
+# Block private/dashboard routes
+Disallow: /mentor/dashboard
+Disallow: /mentor/analytics
+Disallow: /mentor/earnings
+Disallow: /mentor/messages
+Disallow: /mentee/dashboard
+Disallow: /mentee/messages
+Disallow: /admin/
+Disallow: /profile/
+Disallow: /resources
+Disallow: /goals
+Disallow: /issues/
+Disallow: /database
+
+Sitemap: https://mentor-connect-puce.vercel.app/sitemap.xml

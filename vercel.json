@@ -19,8 +19,16 @@
             "dest": "server/server.js"
         },
         {
-            "src": "/(.*)",
-            "dest": "client/$1"
+            "src": "/sitemap.xml",
+            "dest": "client/sitemap.xml",
+            "headers": {
+                "Content-Type": "application/xml; charset=utf-8",
+                "Cache-Control": "public, max-age=86400"
+            }
+        },
+        {
+            "src": "/robots.txt",
+            "dest": "client/robots.txt"
         },
         {
             "handle": "filesystem"
