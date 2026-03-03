@@ -2,40 +2,39 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     Target, Heart, Shield, Zap, Users, Globe,
-    Linkedin, Twitter, ArrowRight,
+    Linkedin, Twitter, Github, Instagram, ArrowRight,
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Button } from '../components/ui/button';
 
+import raushanImg from '../assets/team/raushan_kumar.png';
+import ankitImg from '../assets/team/ankit_meena.png';
+
 const team = [
     {
         name: 'Raushan Kumar',
         role: 'Founder & CEO',
-        bio: 'Full-stack engineer passionate about democratising access to world-class mentorship.',
-        initials: 'RK',
-        color: 'bg-primary-600',
+        bio: 'Full-stack engineer passionate about democratising access to world-class mentorship. Building the bridge between talent and opportunity.',
+        image: raushanImg,
+        gradient: 'from-primary-600/90 to-primary-900/90',
+        backGradient: 'from-primary-700 to-primary-900',
+        social: {
+            linkedin: 'https://www.linkedin.com/in/raushankumar1/',
+            github: 'https://github.com/CodeWithRDX',
+        },
     },
     {
-        name: 'Priya Sharma',
-        role: 'Head of Product',
-        bio: 'Former PM at a Fortune 500 company with a love for building user-first experiences.',
-        initials: 'PS',
-        color: 'bg-secondary-600',
-    },
-    {
-        name: 'Arjun Mehta',
-        role: 'Lead Engineer',
-        bio: 'Open-source contributor who architected the real-time session infrastructure.',
-        initials: 'AM',
-        color: 'bg-accent-600',
-    },
-    {
-        name: 'Sneha Patel',
-        role: 'Community Manager',
-        bio: 'Connects mentors and mentees globally, ensuring every interaction adds value.',
-        initials: 'SP',
-        color: 'bg-success-600',
+        name: 'Ankit Meena',
+        role: 'Co-Founder & Head of Product',
+        bio: 'Full-stack engineer passionate about creating intuitive products that make mentorship effortless and impactful for everyone.',
+        image: ankitImg,
+        gradient: 'from-secondary-600/90 to-secondary-900/90',
+        backGradient: 'from-secondary-700 to-secondary-900',
+        social: {
+            linkedin: 'https://www.linkedin.com/in/ankit-meena77/',
+            github: 'https://github.com/Ankitmina25',
+        },
     },
 ];
 
@@ -238,21 +237,24 @@ const AboutUs = () => (
 
         {/* Team */}
         <section className="py-20 bg-background">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     className="text-center mb-14"
                 >
+                    <p className="text-primary-600 dark:text-primary-400 font-semibold uppercase tracking-widest text-sm mb-3">
+                        Leadership
+                    </p>
                     <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-                        Meet the team
+                        Meet the Founders
                     </h2>
-                    <p className="text-muted-foreground text-lg">
-                        A small, passionate group obsessed with mentorship outcomes.
+                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                        A passionate duo building the future of mentorship. Hover to learn more.
                     </p>
                 </motion.div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 max-w-3xl mx-auto">
                     {team.map((member, i) => (
                         <motion.div
                             key={i}
@@ -261,25 +263,81 @@ const AboutUs = () => (
                             initial="hidden"
                             whileInView="show"
                             viewport={{ once: true }}
-                            className="text-center"
+                            className="flip-card h-[420px] cursor-pointer"
                         >
-                            <div
-                                className={`w-20 h-20 rounded-full ${member.color} flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold`}
-                            >
-                                {member.initials}
-                            </div>
-                            <h3 className="text-lg font-semibold text-foreground">{member.name}</h3>
-                            <p className="text-sm text-primary-600 dark:text-primary-400 mb-2">
-                                {member.role}
-                            </p>
-                            <p className="text-sm text-muted-foreground">{member.bio}</p>
-                            <div className="flex justify-center gap-3 mt-3">
-                                <a href="#" className="text-muted-foreground hover:text-primary-500 transition">
-                                    <Linkedin className="h-4 w-4" />
-                                </a>
-                                <a href="#" className="text-muted-foreground hover:text-primary-500 transition">
-                                    <Twitter className="h-4 w-4" />
-                                </a>
+                            <div className="flip-card-inner">
+                                {/* ── Front ── */}
+                                <div className="flip-card-front shadow-xl">
+                                    <img
+                                        src={member.image}
+                                        alt={member.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                    {/* Gradient overlay */}
+                                    {/* <div className={`absolute inset-0 bg-gradient-to-t ${member.gradient}`} style={{ top: '65%' }} /> */}
+                                    {/* Text overlay */}
+                                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                                        <h3 className="text-xl font-bold mb-1 drop-shadow-lg">
+                                            {member.name}
+                                        </h3>
+                                        <p className="text-sm font-medium text-white/80">
+                                            {member.role}
+                                        </p>
+                                    </div>
+                                    {/* Hover hint */}
+                                    <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-white font-medium">
+                                        Hover me
+                                    </div>
+                                </div>
+
+                                {/* ── Back ── */}
+                                <div className={`flip-card-back bg-gradient-to-br ${member.backGradient} shadow-xl flex flex-col items-center justify-center text-center p-8`}>
+                                    {/* Decorative pattern */}
+                                    <div className="absolute inset-0 opacity-10">
+                                        <div className="absolute top-6 left-6 w-20 h-20 border-2 border-white rounded-full" />
+                                        <div className="absolute bottom-6 right-6 w-32 h-32 border-2 border-white rounded-full" />
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-white rounded-full" />
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="relative z-10">
+                                        <div className="w-20 h-20 rounded-full border-4 border-white/30 overflow-hidden mx-auto mb-4">
+                                            <img
+                                                src={member.image}
+                                                alt={member.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-white mb-1">
+                                            {member.name}
+                                        </h3>
+                                        <p className="text-sm font-medium text-white/70 mb-4">
+                                            {member.role}
+                                        </p>
+                                        <p className="text-sm text-white/80 leading-relaxed mb-6 max-w-[260px] mx-auto">
+                                            {member.bio}
+                                        </p>
+
+                                        {/* Social icons */}
+                                        <div className="flex justify-center gap-3">
+                                            {[
+                                                { icon: Linkedin, href: member.social.linkedin, label: 'LinkedIn' },
+                                                { icon: Github, href: member.social.github, label: 'GitHub' },
+                                            ].map((s) => (
+                                                <a
+                                                    key={s.label}
+                                                    href={s.href}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={s.label}
+                                                    className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
+                                                >
+                                                    <s.icon className="h-4 w-4" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </motion.div>
                     ))}
