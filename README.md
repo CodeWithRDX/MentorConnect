@@ -254,9 +254,6 @@ To test the application:
 3. Deploy the server folder
 4. Update `FRONTEND_URL` in backend `.env`
 
-## 📄 License
-
-This project is licensed under the MIT License.
 
 ## 🤝 Contributing
 
@@ -264,7 +261,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📞 Support
 
-For support, email support@mentorconnect.com or create an issue in the repository.
+For support, email codewithrdx@gmail.com or create an issue in the repository.
 
 ---
 
