@@ -5,10 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm run dev",
-    "client": "cd client && npm run dev",
-    "build": "cd client && npm run build",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+    "server": "npm run --prefix server dev",
+    "client": "npm run --prefix client dev",
+    "build": "npm run --prefix client build",
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client"
   },
   "keywords": [
     "mentorship",

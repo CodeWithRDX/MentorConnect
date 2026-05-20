@@ -1,11 +1,14 @@
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import connectDB from '../config/database.js';
 import User from '../models/User.js';
 
-// Ensure we load the server .env (script may be run from project root)
-const envPath = process.cwd().endsWith('/server')
-  ? `${process.cwd()}/.env`
-  : `${process.cwd()}/server/.env`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Locate env file relative to the script directory (which is always inside server/scripts/)
+const envPath = path.resolve(__dirname, '../.env');
 dotenv.config({ path: envPath });
 
 const run = async () => {
