@@ -3,6 +3,43 @@ import sendEmail from '../utils/sendEmail.js';
 import { emailVerificationTemplate, passwordResetTemplate } from '../utils/emailTemplates.js';
 import crypto from 'crypto';
 
+// ── Helper: set auth cookie + return response ────────────────────────────────
+const sendTokenResponse = (user, statusCode, res, message) => {
+  const token = user.generateToken();
+
+  const cookieOptions = {
+    expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  };
+
+  res.cookie('token', token, cookieOptions);
+
+  res.status(statusCode).json({
+    success: true,
+    message,
+    data: {
+      user: {
+        _id: user._id,
+        id:  user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+        avatar: user.avatar,
+        bio: user.bio,
+        phone: user.phone,
+        socialLinks: user.socialLinks,
+        preferences: user.preferences,
+        mentorProfile: user.mentorProfile,
+        oauthProviders: (user.oauthProviders || []).map(p => ({ provider: p.provider })),
+      },
+      token,
+    },
+  });
+};
+
 // @desc    Get user by ID
 // @route   GET /api/auth/:id
 // @access  Private
@@ -25,7 +62,6 @@ export const register = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
 
-    // Validation
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -40,7 +76,6 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -49,16 +84,15 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Create user
     const user = await User.create({
       name,
       email,
       password,
       role: role || 'mentee',
-      isEmailVerified: process.env.SKIP_EMAIL_VERIFICATION === 'true', // Dev mode
+      isEmailVerified: process.env.SKIP_EMAIL_VERIFICATION === 'true',
     });
 
-    // Generate email verification token (if email verification is enabled)
+    // Generate email verification token
     let token = null;
     if (process.env.SKIP_EMAIL_VERIFICATION !== 'true') {
       token = user.generateEmailVerificationToken();
@@ -74,19 +108,12 @@ export const register = async (req, res, next) => {
           message: emailVerificationTemplate(user.name, token),
         });
 
-        res.status(201).json({
+        return res.status(201).json({
           success: true,
           message: 'Registration successful. Please check your email to verify your account.',
-          data: {
-            user: {
-              id: user._id,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-            },
-          },
+          data: { user: { id: user._id, name: user.name, email: user.email, role: user.role } },
         });
-      } catch (emailError) {
+      } catch {
         user.emailVerificationToken = undefined;
         user.emailVerificationExpire = undefined;
         await user.save({ validateBeforeSave: false });
@@ -96,21 +123,13 @@ export const register = async (req, res, next) => {
           message: 'Email could not be sent. Please try again later.',
         });
       }
-    } else {
-      // Skip email verification for development
-      res.status(201).json({
-        success: true,
-        message: 'Registration successful! You can now login.',
-        data: {
-          user: {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          },
-        },
-      });
     }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Registration successful! You can now login.',
+      data: { user: { id: user._id, name: user.name, email: user.email, role: user.role } },
+    });
   } catch (error) {
     next(error);
   }
@@ -123,7 +142,6 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -131,62 +149,38 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Check user and password
     const user = await User.findOne({ email }).select('+password').populate('mentorProfile');
     if (!user) {
-      return res.status(401).json({
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    // Block OAuth-only users from password login
+    if (!user.password) {
+      return res.status(400).json({
         success: false,
-        message: 'Invalid credentials',
+        message: 'This account uses Google sign-in. Please use the Google button to log in.',
       });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Admins should use the admin portal
-    if (user.role === 'admin') {
+    // Admins use the admin portal
+    if (user.role === 'admin' || user.role === 'sub_admin') {
       return res.status(403).json({
         success: false,
         message: 'Admin accounts must log in via the admin portal.',
       });
     }
 
-    // Generate token
-    const token = user.generateToken();
+    // Update login tracking
+    user.lastLoginAt = new Date();
+    user.loginCount = (user.loginCount || 0) + 1;
+    await user.save({ validateBeforeSave: false });
 
-    // Set cookie
-    const options = {
-      expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      // Allow cross-site requests from dev client (different port)
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    };
-
-    res.cookie('token', token, options);
-
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: {
-          _id: user._id,
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-          avatar: user.avatar,
-          mentorProfile: user.mentorProfile,
-        },
-        token,
-      },
-    });
+    sendTokenResponse(user, 200, res, 'Login successful');
   } catch (error) {
     next(error);
   }
@@ -201,10 +195,7 @@ export const logout = async (req, res) => {
     httpOnly: true,
   });
 
-  res.status(200).json({
-    success: true,
-    message: 'Logged out successfully',
-  });
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
 // @desc    Get current user
@@ -213,41 +204,37 @@ export const logout = async (req, res) => {
 export const getMe = async (req, res) => {
   const user = await User.findById(req.user.id).populate('mentorProfile');
 
-  res.status(200).json({
-    success: true,
-    data: { user },
-  });
+  res.status(200).json({ success: true, data: { user } });
 };
 
-// @desc    Update user profile
+// @desc    Update user profile (name, bio, phone, avatar, socialLinks)
 // @route   PUT /api/auth/profile/update
 // @access  Private
 export const updateProfile = async (req, res, next) => {
   try {
-    const { name, email, avatar } = req.body;
+    const { name, avatar, bio, phone, socialLinks } = req.body;
     const userId = req.user.id;
 
-    // Validation
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name is required',
-      });
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Name is required' });
     }
 
-    // Find user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Update fields
-    if (name) user.name = name.trim();
-    if (avatar) user.avatar = avatar;
-    // Email cannot be changed
+    user.name = name.trim();
+    if (avatar !== undefined) user.avatar = avatar;
+    if (bio !== undefined) user.bio = bio.slice(0, 500);
+    if (phone !== undefined) user.phone = phone;
+    if (socialLinks && typeof socialLinks === 'object') {
+      user.socialLinks = {
+        linkedin: socialLinks.linkedin || user.socialLinks?.linkedin || '',
+        twitter:  socialLinks.twitter  || user.socialLinks?.twitter  || '',
+        website:  socialLinks.website  || user.socialLinks?.website  || '',
+      };
+    }
 
     await user.save();
 
@@ -257,15 +244,93 @@ export const updateProfile = async (req, res, next) => {
       data: {
         user: {
           _id: user._id,
-          id: user._id,
+          id:  user._id,
           name: user.name,
           email: user.email,
           role: user.role,
           avatar: user.avatar,
+          bio: user.bio,
+          phone: user.phone,
+          socialLinks: user.socialLinks,
+          preferences: user.preferences,
           isEmailVerified: user.isEmailVerified,
         },
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update user preferences (notifications, theme, timezone)
+// @route   PUT /api/auth/preferences
+// @access  Private
+export const updatePreferences = async (req, res, next) => {
+  try {
+    const { emailNotifications, sessionReminders, marketingEmails, theme, timezone } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.preferences) user.preferences = {};
+
+    if (emailNotifications !== undefined) user.preferences.emailNotifications = Boolean(emailNotifications);
+    if (sessionReminders   !== undefined) user.preferences.sessionReminders   = Boolean(sessionReminders);
+    if (marketingEmails    !== undefined) user.preferences.marketingEmails    = Boolean(marketingEmails);
+    if (theme && ['light', 'dark', 'system'].includes(theme)) user.preferences.theme = theme;
+    if (timezone) user.preferences.timezone = timezone;
+
+    user.markModified('preferences');
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: { preferences: user.preferences },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+// @access  Private
+export const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Please provide current and new passwords' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'This account uses Google sign-in and has no password to change.',
+      });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     next(error);
   }
@@ -279,17 +344,10 @@ export const verifyEmail = async (req, res, next) => {
     const { token } = req.body;
 
     if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide verification token',
-      });
+      return res.status(400).json({ success: false, message: 'Please provide verification token' });
     }
 
-    // Hash token
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
       emailVerificationToken: hashedToken,
@@ -297,10 +355,7 @@ export const verifyEmail = async (req, res, next) => {
     });
 
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired token',
-      });
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
     }
 
     user.isEmailVerified = true;
@@ -308,10 +363,7 @@ export const verifyEmail = async (req, res, next) => {
     user.emailVerificationExpire = undefined;
     await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Email verified successfully',
-    });
+    res.status(200).json({ success: true, message: 'Email verified successfully' });
   } catch (error) {
     next(error);
   }
@@ -325,25 +377,17 @@ export const forgotPassword = async (req, res, next) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email',
-      });
+      return res.status(400).json({ success: false, message: 'Please provide email' });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Generate reset token
     const token = user.generatePasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    // Send email
     try {
       await sendEmail({
         email: user.email,
@@ -351,19 +395,13 @@ export const forgotPassword = async (req, res, next) => {
         message: passwordResetTemplate(user.name, token),
       });
 
-      res.status(200).json({
-        success: true,
-        message: 'Password reset email sent',
-      });
-    } catch (emailError) {
+      res.status(200).json({ success: true, message: 'Password reset email sent' });
+    } catch {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save({ validateBeforeSave: false });
 
-      return res.status(500).json({
-        success: false,
-        message: 'Email could not be sent',
-      });
+      return res.status(500).json({ success: false, message: 'Email could not be sent' });
     }
   } catch (error) {
     next(error);
@@ -378,17 +416,10 @@ export const resetPassword = async (req, res, next) => {
     const { token, password } = req.body;
 
     if (!token || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide token and password',
-      });
+      return res.status(400).json({ success: false, message: 'Please provide token and password' });
     }
 
-    // Hash token
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
@@ -396,10 +427,7 @@ export const resetPassword = async (req, res, next) => {
     });
 
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired token',
-      });
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
     }
 
     user.password = password;
@@ -407,12 +435,8 @@ export const resetPassword = async (req, res, next) => {
     user.resetPasswordExpire = undefined;
     await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Password reset successful',
-    });
+    res.status(200).json({ success: true, message: 'Password reset successful' });
   } catch (error) {
     next(error);
   }
 };
-

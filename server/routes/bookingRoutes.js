@@ -7,6 +7,7 @@ import {
   completeBooking,
   approveBooking,
   rejectBooking,
+  getActiveCallSession,
 } from '../controllers/bookingController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post('/', protect, createBooking);
 router.get('/user/:id', protect, getUserBookings);
 router.get('/mentor/:id', protect, getMentorBookings);
+router.get('/:id/active-call', protect, getActiveCallSession);
 router.put('/:id/cancel', protect, cancelBooking);
 router.put('/:id/complete', protect, completeBooking);
 router.put('/:id/approve', protect, approveBooking);

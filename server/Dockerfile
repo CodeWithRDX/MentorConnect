@@ -14,7 +14,7 @@ RUN npm ci --omit=dev
 COPY . .
 
 # Expose the server port
-EXPOSE 5000
+EXPOSE 5002
 
 # Set environment variable to production
 ENV NODE_ENV=production

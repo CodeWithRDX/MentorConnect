@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
@@ -14,23 +14,25 @@ const SERVER_URL =
 
 export const SocketProvider = ({ children }) => {
     const { user } = useAuth();
-    const socketRef = useRef(null);
+    const [socket, setSocket] = useState(null);
     const [onlineUsers, setOnlineUsers] = useState(new Set());
 
     useEffect(() => {
         if (!user) {
             // Disconnect if logged out
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
+            setSocket((prevSocket) => {
+                if (prevSocket) {
+                    prevSocket.disconnect();
+                }
+                return null;
+            });
             return;
         }
 
         // Get stored JWT token
         const token = localStorage.getItem('token') || '';
 
-        const socket = io(SERVER_URL, {
+        const socketInstance = io(SERVER_URL, {
             auth: { token },
             reconnection: true,
             reconnectionDelay: 1000,
@@ -38,21 +40,20 @@ export const SocketProvider = ({ children }) => {
             transports: ['websocket', 'polling'],
         });
 
-        socketRef.current = socket;
-
-        socket.on('connect', () => {
-            console.log('[Socket] Connected:', socket.id);
+        socketInstance.on('connect', () => {
+            console.log('[Socket] Connected:', socketInstance.id);
+            setSocket(socketInstance);
         });
 
-        socket.on('connect_error', (err) => {
+        socketInstance.on('connect_error', (err) => {
             console.warn('[Socket] Connection error:', err.message);
         });
 
-        socket.on('user_online', ({ userId }) => {
+        socketInstance.on('user_online', ({ userId }) => {
             setOnlineUsers((prev) => new Set([...prev, userId]));
         });
 
-        socket.on('user_offline', ({ userId }) => {
+        socketInstance.on('user_offline', ({ userId }) => {
             setOnlineUsers((prev) => {
                 const next = new Set(prev);
                 next.delete(userId);
@@ -61,13 +62,13 @@ export const SocketProvider = ({ children }) => {
         });
 
         return () => {
-            socket.disconnect();
-            socketRef.current = null;
+            socketInstance.disconnect();
+            setSocket(null);
         };
     }, [user]);
 
     return (
-        <SocketContext.Provider value={{ socket: socketRef.current, onlineUsers }}>
+        <SocketContext.Provider value={{ socket, onlineUsers }}>
             {children}
         </SocketContext.Provider>
     );

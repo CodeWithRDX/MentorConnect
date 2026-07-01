@@ -1,6 +1,7 @@
 import Booking from '../models/Booking.js';
 import Mentor from '../models/Mentor.js';
 import User from '../models/User.js';
+import CallSession from '../models/CallSession.js';
 import sendEmail from '../utils/sendEmail.js';
 
 // @desc    Create booking
@@ -344,6 +345,25 @@ export const rejectBooking = async (req, res, next) => {
     } catch (err) { console.error('Email error', err); }
 
     res.status(200).json({ success: true, data: booking });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get active call session for a booking
+// @route   GET /api/bookings/:id/active-call
+// @access  Private
+export const getActiveCallSession = async (req, res, next) => {
+  try {
+    const activeCall = await CallSession.findOne({
+      booking: req.params.id,
+      status: { $in: ['initiated', 'ringing', 'active'] },
+    }).populate('caller', 'name avatar');
+
+    res.status(200).json({
+      success: true,
+      data: activeCall,
+    });
   } catch (error) {
     next(error);
   }

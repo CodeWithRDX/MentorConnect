@@ -20,7 +20,6 @@ const getCachedUser = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // Start with any cached user to avoid blocking UI on mount
   const [user, setUser] = useState(getCachedUser());
   const [loading, setLoading] = useState(false);
   const hasCheckedAuth = useRef(false);
@@ -32,13 +31,10 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ----------------------------
-  // CHECK AUTH
-  // ----------------------------
+  // ── CHECK AUTH ──────────────────────────────────────────────────────────────
   const checkAuth = async () => {
     setLoading(true);
     try {
-      // Prefer bearer token from storage (proxy + same-site cookies can be flaky in dev)
       const storedToken = localStorage.getItem('token');
       const response = await api.get('/auth/me', {
         headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
@@ -46,8 +42,7 @@ export const AuthProvider = ({ children }) => {
       const loggedUser = response.data.data.user;
       setUser(loggedUser);
       localStorage.setItem('user', JSON.stringify(loggedUser));
-    } catch (error) {
-      // Fall back to any cached user so the UI can still render something
+    } catch {
       const cachedUser = getCachedUser();
       if (cachedUser) {
         setUser(cachedUser);
@@ -60,70 +55,56 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ----------------------------
-  // USER LOGIN
-  // ----------------------------
+  // ── USER LOGIN (email + password) ───────────────────────────────────────────
   const login = async (email, password) => {
-    try {
-      const response = await api.post('/auth/login', { email, password });
-
-      const userData = response.data?.data?.user || response.data?.data;
-      const token = response.data?.data?.token;
-
-      if (token) {
-        localStorage.setItem('token', token);
-      }
-
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      return { user: userData, token };
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
+    const response = await api.post('/auth/login', { email, password });
+    const userData = response.data?.data?.user || response.data?.data;
+    const token    = response.data?.data?.token;
+    if (token) localStorage.setItem('token', token);
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    return { user: userData, token };
   };
 
-  // ----------------------------
-  // ADMIN LOGIN (NEW)
-  // ----------------------------
+  // ── GOOGLE OAUTH LOGIN ──────────────────────────────────────────────────────
+  const loginWithGoogle = async (credential, role, userInfo) => {
+    const response = await api.post('/auth/oauth/google', {
+      credential,
+      role,
+      _googleUserInfo: userInfo,
+    });
+    const userData = response.data?.data?.user;
+    const token    = response.data?.data?.token;
+    if (token) localStorage.setItem('token', token);
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    return { user: userData, token };
+  };
+
+  // ── ADMIN LOGIN ─────────────────────────────────────────────────────────────
   const adminLogin = async (email, password) => {
-    try {
-      const response = await api.post('/admin/login', { email, password });
-
-      const userData = response.data.user;
-
-      // save token if returned
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-      }
-
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      return response;
-    } catch (error) {
-      console.error("Admin login error:", error);
-      throw error;
+    const response = await api.post('/admin/login', { email, password });
+    const userData = response.data.user;
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
     }
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    return response;
   };
 
-  // ----------------------------
-  // REGISTER
-  // ----------------------------
+  // ── REGISTER ────────────────────────────────────────────────────────────────
   const register = async (userData) => {
     const response = await api.post('/auth/register', userData);
     return response.data;
   };
 
-  // ----------------------------
-  // LOGOUT
-  // ----------------------------
+  // ── LOGOUT ──────────────────────────────────────────────────────────────────
   const logout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch {
+      // proceed with local logout even if server call fails
     } finally {
       setUser(null);
       localStorage.removeItem('user');
@@ -132,11 +113,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Context value
   const value = {
     user,
     loading,
     login,
+    loginWithGoogle,
     adminLogin,
     register,
     logout,

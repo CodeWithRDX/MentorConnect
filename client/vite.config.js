@@ -5,7 +5,7 @@ import path from 'path'
 export default defineConfig(({ mode }) => {
   // Load env variables (from client/.env)
   const env = loadEnv(mode, process.cwd(), '');
-  const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:5000';
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:5002';
 
   return {
     plugins: [react()],
@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
       host: true, // required for docker container port mapping
       watch: {
         usePolling: true, // fallback for Docker volume mount change detection
+      },
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
       },
       proxy: {
         '/api': {

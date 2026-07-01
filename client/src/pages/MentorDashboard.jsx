@@ -8,10 +8,12 @@ import { Button } from '../components/ui/button';
 import { Calendar, Users, MessageSquare, TrendingUp, DollarSign } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useCall } from '../context/CallContext';
 import { toast } from '../components/ui/toaster';
 
 const MentorDashboard = () => {
   const { user } = useAuth();
+  const { startCall } = useCall();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [mentorProfileData, setMentorProfileData] = useState(null);
@@ -484,19 +486,34 @@ const MentorDashboard = () => {
                               </p>
                               <p className="text-sm text-muted-foreground mt-1">{booking.topic || 'General Session'}</p>
                             </div>
-                            <Button
-                              className="ml-4"
-                              size="sm"
-                              onClick={() => {
-                                if (booking.meetingLink) {
-                                  window.open(booking.meetingLink, '_blank', 'noopener');
-                                } else {
-                                  toast('Meeting link not set by admin yet', 'error');
-                                }
-                              }}
-                            >
-                              Join Call
-                            </Button>
+                             <div className="flex items-center gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  if (booking.meetingLink) {
+                                    window.open(booking.meetingLink, '_blank', 'noopener');
+                                  } else {
+                                    toast('Meeting link not set by admin yet', 'error');
+                                  }
+                                }}
+                              >
+                                Join Call
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-neutral-800"
+                                onClick={() => {
+                                  if (booking.mentee?._id) {
+                                    startCall(booking.mentee._id, booking.mentee.name, booking._id);
+                                  } else {
+                                    toast('Mentee information is missing', 'error');
+                                  }
+                                }}
+                              >
+                                Start Video Call
+                              </Button>
+                            </div>
                           </motion.div>
                         ))}
                     </div>
@@ -593,20 +610,40 @@ const MentorDashboard = () => {
                               <p className="font-semibold text-foreground">{mentee.name}</p>
                               <p className="text-sm text-muted-foreground">{mentee.email}</p>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                if (mentee?._id) {
-                                  navigate(`/mentor/messages?mentee=${mentee._id}`);
-                                } else {
-                                  toast('Mentee not found for chat', 'error');
-                                }
-                              }}
-                            >
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Chat
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (mentee?._id) {
+                                    navigate(`/mentor/messages?mentee=${mentee._id}`);
+                                  } else {
+                                    toast('Mentee not found for chat', 'error');
+                                  }
+                                }}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                                Chat
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-neutral-800"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (mentee?._id) {
+                                    startCall(mentee._id, mentee.name);
+                                  } else {
+                                    toast('Mentee information is missing', 'error');
+                                  }
+                                }}
+                                title="Start Video Call"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </Button>
+                            </div>
                           </motion.div>
                         ))}
                       </div>

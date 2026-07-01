@@ -8,10 +8,12 @@ import { Button } from '../components/ui/button';
 import { Calendar, TrendingUp, Users, Star, MessageSquare } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useCall } from '../context/CallContext';
 import { toast } from '../components/ui/toaster';
 
 const MenteeDashboard = () => {
   const { user } = useAuth();
+  const { setActiveCall, setCallStatus } = useCall();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({
@@ -103,8 +105,35 @@ const MenteeDashboard = () => {
     // User said "if time exceeds... should not able to chat". 
     // Use end time for expiry.
     if (b.status === 'pending') return true;
-    return end && end > new Date();
   });
+
+  const handleJoinCall = async (booking) => {
+    try {
+      const res = await api.get(`/bookings/${booking._id}/active-call`);
+      const activeSession = res.data.data;
+      if (activeSession) {
+        // Redirect to call page as callee using the retrieved roomId
+        setActiveCall({
+          roomId: activeSession.roomId,
+          peerId: activeSession.caller._id || activeSession.caller,
+          peerName: activeSession.caller.name,
+          role: 'callee',
+          offer: activeSession.offer || null,
+        });
+        setCallStatus('connecting');
+        navigate(`/call/${activeSession.roomId}`);
+      } else {
+        // Fallback to meeting link if no active session yet
+        if (booking.meetingLink) {
+          window.open(booking.meetingLink, '_blank', 'noopener');
+        } else {
+          toast('Mentor has not started the video call yet. Wait for a call notification or try again.', 'info');
+        }
+      }
+    } catch (err) {
+      toast('Failed to join call', 'error');
+    }
+  };
 
   if (loading) {
     return (
@@ -282,7 +311,10 @@ const MenteeDashboard = () => {
                               📅 {new Date(booking.sessionDate).toLocaleDateString()} at {booking.sessionTime?.start || 'TBD'}
                             </p>
                             <div className="flex gap-3">
-                              <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
+                              <Button
+                                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                onClick={() => handleJoinCall(booking)}
+                              >
                                 Join Call
                               </Button>
                               {canChat && (
