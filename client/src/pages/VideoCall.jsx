@@ -202,7 +202,6 @@ const VideoCall = () => {
           </div>
         )}
       </div>
-
       {/* ── Local video (PiP) ─────────────────────────────────────────────── */}
       <div className="absolute top-16 right-4 z-20 w-32 h-44 md:w-48 md:h-64 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-neutral-800">
         <video
@@ -233,6 +232,8 @@ const VideoCall = () => {
             active={!isMuted}
             onClick={toggleMic}
             label={isMuted ? 'Unmute' : 'Mute'}
+            activeColor="bg-white/20 hover:bg-white/30"
+            inactiveColor="bg-red-600 hover:bg-red-700"
             activeIcon={
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             }
@@ -246,6 +247,8 @@ const VideoCall = () => {
             active={!isCameraOff}
             onClick={toggleCamera}
             label={isCameraOff ? 'Start Video' : 'Stop Video'}
+            activeColor="bg-white/20 hover:bg-white/30"
+            inactiveColor="bg-red-600 hover:bg-red-700"
             activeIcon={
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             }
