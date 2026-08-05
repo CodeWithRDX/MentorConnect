@@ -2,20 +2,24 @@ import User from '../models/User.js';
 import sendEmail from '../utils/sendEmail.js';
 import { emailVerificationTemplate, passwordResetTemplate } from '../utils/emailTemplates.js';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 // ── Helper: set auth cookie + return response ────────────────────────────────
 const sendTokenResponse = (user, statusCode, res, message) => {
-  const token = user.generateToken();
+  const token = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
 
   const cookieOptions = {
-    expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+    expires: new Date(Date.now() + (parseInt(process.env.COOKIE_EXPIRE, 10) || 7) * 24 * 60 * 60 * 1000),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    path: '/',
   };
 
-  res.cookie('token', token, cookieOptions);
+  res.cookie('refreshToken', refreshToken, cookieOptions);
 
+  // Return access token in JSON body
   res.status(statusCode).json({
     success: true,
     message,
@@ -190,12 +194,80 @@ export const login = async (req, res, next) => {
 // @route   POST /api/auth/logout
 // @access  Private
 export const logout = async (req, res) => {
-  res.cookie('token', 'none', {
-    expires: new Date(Date.now() + 10 * 1000),
+  res.clearCookie('refreshToken', {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    path: '/',
   });
 
   res.status(200).json({ success: true, message: 'Logged out successfully' });
+};
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+export const refresh = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        code: 'REFRESH_TOKEN_MISSING',
+        message: 'Refresh token is missing',
+      });
+    }
+
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, refreshSecret);
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        code: 'REFRESH_TOKEN_INVALID',
+        message: 'Invalid or expired refresh token. Please login again.',
+      });
+    }
+
+    const user = await User.findById(decoded.id).populate('mentorProfile');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        code: 'USER_NOT_FOUND',
+        message: 'User not found',
+      });
+    }
+
+    // Generate new access token
+    const token = user.generateAccessToken();
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      data: {
+        token,
+        user: {
+          _id: user._id,
+          id:  user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified,
+          avatar: user.avatar,
+          bio: user.bio,
+          phone: user.phone,
+          socialLinks: user.socialLinks,
+          preferences: user.preferences,
+          mentorProfile: user.mentorProfile,
+          oauthProviders: (user.oauthProviders || []).map(p => ({ provider: p.provider })),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // @desc    Get current user

@@ -3,6 +3,7 @@ import {
   register,
   login,
   logout,
+  refresh,
   getMe,
   updateProfile,
   updatePreferences,
@@ -14,12 +15,14 @@ import {
 } from '../controllers/authController.js';
 import { googleOAuth } from '../controllers/oauthController.js';
 import { protect } from '../middleware/auth.js';
+import { validateBody, schemas } from '../middleware/validation.js';
 
 const router = express.Router();
 
 // Public routes
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', validateBody(schemas.register), register);
+router.post('/login', validateBody(schemas.login), login);
+router.post('/refresh', refresh);
 router.post('/verify-email', verifyEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

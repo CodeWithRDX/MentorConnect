@@ -7,12 +7,13 @@ import {
   deleteGoal,
 } from '../controllers/goalController.js';
 import { protect } from '../middleware/auth.js';
+import { validateBody, schemas } from '../middleware/validation.js';
 
 const router = express.Router();
 
 router.use(protect); // All routes require authentication
 
-router.route('/').post(createGoal).get(getUserGoals);
+router.route('/').post(validateBody(schemas.goal), createGoal).get(getUserGoals);
 router.route('/:id').get(getGoal).put(updateGoal).delete(deleteGoal);
 
 export default router;

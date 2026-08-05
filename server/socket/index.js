@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
+import Booking from '../models/Booking.js';
 import CallSession from '../models/CallSession.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -105,6 +106,24 @@ const initSocket = (httpServer) => {
                 // Check if target is online
                 if (!onlineUsers.has(to)) {
                     return ack?.({ success: false, error: 'User is not online' });
+                }
+
+                // Validate that caller and callee belong to this booking
+                if (bookingId) {
+                    const booking = await Booking.findById(bookingId).populate('mentor', 'user');
+                    if (!booking) {
+                        return ack?.({ success: false, error: 'Invalid booking session.' });
+                    }
+                    const menteeId = booking.mentee.toString();
+                    const mentorUserId = booking.mentor?.user?.toString();
+
+                    const isAuthorized = 
+                        (userId === menteeId && to === mentorUserId) ||
+                        (userId === mentorUserId && to === menteeId);
+
+                    if (!isAuthorized) {
+                        return ack?.({ success: false, error: 'Unauthorized call session for this booking.' });
+                    }
                 }
 
                 const finalRoomId = roomId || uuidv4();
@@ -246,8 +265,25 @@ const initSocket = (httpServer) => {
         // ── ─────────────────────────────────────────────────────────────────
 
         // Join a whiteboard room (shared per booking/call)
-        socket.on('whiteboard:join', ({ roomId }) => {
-            socket.join(`wb:${roomId}`);
+        socket.on('whiteboard:join', async ({ roomId }, ack) => {
+            try {
+                const session = await CallSession.findOne({ roomId });
+                if (!session) {
+                    return ack?.({ success: false, error: 'Call session not found' });
+                }
+                const isParticipant =
+                    session.caller.toString() === userId ||
+                    session.callee.toString() === userId;
+
+                if (!isParticipant) {
+                    return ack?.({ success: false, error: 'Unauthorized to join whiteboard.' });
+                }
+
+                socket.join(`wb:${roomId}`);
+                ack?.({ success: true });
+            } catch (err) {
+                ack?.({ success: false, error: 'Failed to join whiteboard.' });
+            }
         });
 
         // Broadcast draw strokes to everyone in the room except sender
@@ -265,8 +301,24 @@ const initSocket = (httpServer) => {
         // ── ─────────────────────────────────────────────────────────────────
 
         // Join a notes room (keyed by bookingId)
-        socket.on('notes:join', ({ bookingId }) => {
-            socket.join(`notes:${bookingId}`);
+        socket.on('notes:join', async ({ bookingId }, ack) => {
+            try {
+                const booking = await Booking.findById(bookingId).populate('mentor', 'user');
+                if (!booking) {
+                    return ack?.({ success: false, error: 'Booking not found.' });
+                }
+                const menteeId = booking.mentee.toString();
+                const mentorUserId = booking.mentor?.user?.toString();
+
+                if (userId !== menteeId && userId !== mentorUserId) {
+                    return ack?.({ success: false, error: 'Unauthorized to join notes.' });
+                }
+
+                socket.join(`notes:${bookingId}`);
+                ack?.({ success: true });
+            } catch (err) {
+                ack?.({ success: false, error: 'Failed to join notes.' });
+            }
         });
 
         // Broadcast content changes (debounced on client)

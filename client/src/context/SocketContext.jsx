@@ -13,13 +13,13 @@ const SERVER_URL =
         : 'http://localhost:5002');
 
 export const SocketProvider = ({ children }) => {
-    const { user } = useAuth();
+    const { user, accessToken } = useAuth();
     const [socket, setSocket] = useState(null);
     const [onlineUsers, setOnlineUsers] = useState(new Set());
 
     useEffect(() => {
-        if (!user) {
-            // Disconnect if logged out
+        if (!user || !accessToken) {
+            // Disconnect if logged out or token is missing
             setSocket((prevSocket) => {
                 if (prevSocket) {
                     prevSocket.disconnect();
@@ -29,11 +29,8 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
-        // Get stored JWT token
-        const token = localStorage.getItem('token') || '';
-
         const socketInstance = io(SERVER_URL, {
-            auth: { token },
+            auth: { token: accessToken },
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionAttempts: 5,
@@ -65,7 +62,7 @@ export const SocketProvider = ({ children }) => {
             socketInstance.disconnect();
             setSocket(null);
         };
-    }, [user]);
+    }, [user, accessToken]);
 
     return (
         <SocketContext.Provider value={{ socket, onlineUsers }}>

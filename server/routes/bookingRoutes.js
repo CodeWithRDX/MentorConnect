@@ -10,10 +10,11 @@ import {
   getActiveCallSession,
 } from '../controllers/bookingController.js';
 import { protect } from '../middleware/auth.js';
+import { validateBody, schemas } from '../middleware/validation.js';
 
 const router = express.Router();
 
-router.post('/', protect, createBooking);
+router.post('/', protect, validateBody(schemas.booking), createBooking);
 router.get('/user/:id', protect, getUserBookings);
 router.get('/mentor/:id', protect, getMentorBookings);
 router.get('/:id/active-call', protect, getActiveCallSession);

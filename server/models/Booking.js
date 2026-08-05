@@ -71,6 +71,8 @@ const bookingSchema = new mongoose.Schema({
 // Index for queries
 bookingSchema.index({ mentee: 1, sessionDate: -1 });
 bookingSchema.index({ mentor: 1, sessionDate: -1 });
+bookingSchema.index({ mentor: 1, status: 1, sessionDate: -1 });
+bookingSchema.index({ mentee: 1, status: 1, sessionDate: -1 });
 
 export default mongoose.model('Booking', bookingSchema);
 

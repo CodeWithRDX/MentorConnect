@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-// Prefer same-origin /api during dev to avoid port mismatches.
-// If an explicit env is set, use it; otherwise build from window.location.
 const API_URL =
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api');
@@ -15,16 +13,21 @@ const api = axios.create({
   },
 });
 
+let accessToken = '';
+
+export const setAccessToken = (token) => {
+  accessToken = token;
+};
+
+export const getAccessToken = () => {
+  return accessToken;
+};
+
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Attach bearer token if stored (admin login returns token + cookie)
-    try {
-      const token = localStorage.getItem('token');
-      if (token && !config.headers.Authorization) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (err) {
-      // ignore storage errors
+    if (accessToken && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -33,18 +36,84 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor for automatic silent token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Don't redirect on 401 here - let AuthContext handle it
-    if (error.response?.status === 401) {
-      // Only redirect if we're not already on login/register/home
-      const currentPath = window.location.pathname;
-      const publicPaths = ['/', '/login', '/register', '/forgot-password'];
-      
-      if (!publicPaths.includes(currentPath) && !currentPath.includes('/verify-email') && !currentPath.includes('/reset-password')) {
-        // Silently fail - don't redirect
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Intercept 401 Unauthorized errors (token expired)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't refresh on auth endpoints (login, register, refresh)
+      const isAuthRoute =
+        originalRequest.url.includes('/auth/login') ||
+        originalRequest.url.includes('/auth/register') ||
+        originalRequest.url.includes('/auth/refresh') ||
+        originalRequest.url.includes('/admin/login');
+
+      if (isAuthRoute) {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const response = await axios.post(
+          `${API_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+        const newToken = response.data?.data?.token;
+
+        if (newToken) {
+          setAccessToken(newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          processQueue(null, newToken);
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        setAccessToken('');
+        
+        // Force redirect to login on session expiry for protected pages
+        const currentPath = window.location.pathname;
+        const publicPaths = ['/', '/login', '/register', '/forgot-password', '/select-role'];
+        if (
+          !publicPaths.includes(currentPath) &&
+          !currentPath.includes('/verify-email') &&
+          !currentPath.includes('/reset-password')
+        ) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);
@@ -52,4 +121,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

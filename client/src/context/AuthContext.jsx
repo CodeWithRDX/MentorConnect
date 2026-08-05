@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import api from '../utils/api';
+import api, { setAccessToken as setApiAccessToken } from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -21,8 +21,14 @@ const getCachedUser = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getCachedUser());
+  const [accessToken, setAccessTokenState] = useState('');
   const [loading, setLoading] = useState(false);
   const hasCheckedAuth = useRef(false);
+
+  const setAccessToken = (token) => {
+    setAccessTokenState(token);
+    setApiAccessToken(token);
+  };
 
   useEffect(() => {
     if (!hasCheckedAuth.current) {
@@ -31,25 +37,26 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ── CHECK AUTH ──────────────────────────────────────────────────────────────
+  // ── CHECK AUTH (Silent Refresh on Load) ─────────────────────────────────────
   const checkAuth = async () => {
     setLoading(true);
     try {
-      const storedToken = localStorage.getItem('token');
-      const response = await api.get('/auth/me', {
-        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-      });
-      const loggedUser = response.data.data.user;
-      setUser(loggedUser);
-      localStorage.setItem('user', JSON.stringify(loggedUser));
-    } catch {
-      const cachedUser = getCachedUser();
-      if (cachedUser) {
-        setUser(cachedUser);
+      const response = await api.post('/auth/refresh');
+      const token = response.data?.data?.token;
+      const loggedUser = response.data?.data?.user;
+
+      if (token && loggedUser) {
+        setAccessToken(token);
+        setUser(loggedUser);
+        localStorage.setItem('user', JSON.stringify(loggedUser));
       } else {
-        setUser(null);
-        localStorage.removeItem('user');
+        throw new Error('Invalid refresh response');
       }
+    } catch {
+      // Refresh failed or no refresh token cookie. Clear session metadata.
+      setAccessToken('');
+      setUser(null);
+      localStorage.removeItem('user');
     } finally {
       setLoading(false);
     }
@@ -60,7 +67,8 @@ export const AuthProvider = ({ children }) => {
     const response = await api.post('/auth/login', { email, password });
     const userData = response.data?.data?.user || response.data?.data;
     const token    = response.data?.data?.token;
-    if (token) localStorage.setItem('token', token);
+    
+    if (token) setAccessToken(token);
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     return { user: userData, token };
@@ -75,7 +83,8 @@ export const AuthProvider = ({ children }) => {
     });
     const userData = response.data?.data?.user;
     const token    = response.data?.data?.token;
-    if (token) localStorage.setItem('token', token);
+    
+    if (token) setAccessToken(token);
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     return { user: userData, token };
@@ -85,9 +94,9 @@ export const AuthProvider = ({ children }) => {
   const adminLogin = async (email, password) => {
     const response = await api.post('/admin/login', { email, password });
     const userData = response.data.user;
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-    }
+    const token = response.data.token;
+    
+    if (token) setAccessToken(token);
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     return response;
@@ -106,15 +115,16 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // proceed with local logout even if server call fails
     } finally {
+      setAccessToken('');
       setUser(null);
       localStorage.removeItem('user');
-      localStorage.removeItem('token');
       window.location.href = '/';
     }
   };
 
   const value = {
     user,
+    accessToken,
     loading,
     login,
     loginWithGoogle,

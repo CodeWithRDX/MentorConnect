@@ -129,12 +129,26 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// ── Generate JWT token ───────────────────────────────────────────────────────
+// ── Generate JWT token (Alias for Access Token) ──────────────────────────────
 userSchema.methods.generateToken = function() {
+  return this.generateAccessToken();
+};
+
+// ── Generate Access Token ───────────────────────────────────────────────────
+userSchema.methods.generateAccessToken = function() {
   return jwt.sign(
     { id: this._id, role: this.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '15m' }
+  );
+};
+
+// ── Generate Refresh Token ──────────────────────────────────────────────────
+userSchema.methods.generateRefreshToken = function() {
+  return jwt.sign(
+    { id: this._id },
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRE || '7d' }
   );
 };
 
@@ -168,5 +182,7 @@ userSchema.methods.generatePasswordResetToken = function() {
   this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   return token;
 };
+
+userSchema.index({ role: 1 });
 
 export default mongoose.model('User', userSchema);

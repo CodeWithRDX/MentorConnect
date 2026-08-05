@@ -41,9 +41,6 @@ const AdminLogin = () => {
       if (userData.role !== 'admin') {
         setError('Access Denied: Only admins can access this portal');
         toast('Only admins can access this portal', 'error');
-        // Clear any tokens
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('token');
         setLoading(false);
         return;
       }
@@ -56,9 +53,6 @@ const AdminLogin = () => {
       const errorMsg = error.response?.data?.message || 'Login failed';
       setError(errorMsg);
       toast(errorMsg, 'error');
-      // Clear tokens on error
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
       setLoading(false);
     }
   };
