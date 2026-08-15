@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
         usePolling: true, // fallback for Docker volume mount change detection
       },
       headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+        'Cross-Origin-Opener-Policy': 'unsafe-none',
       },
       proxy: {
         '/api': {

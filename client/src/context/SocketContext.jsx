@@ -4,13 +4,29 @@ import { useAuth } from './AuthContext';
 
 const SocketContext = createContext(null);
 
-// The server URL — during dev, Vite proxies /api but socket.io needs its own connection.
-// We connect directly to the server origin.
-const SERVER_URL =
-    import.meta.env.VITE_SERVER_URL ||
-    (typeof window !== 'undefined'
-        ? `${window.location.protocol}//${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT || 5002}`
-        : 'http://localhost:5002');
+// The server URL for Socket.IO
+const getServerUrl = () => {
+    if (import.meta.env.VITE_SERVER_URL) {
+        return import.meta.env.VITE_SERVER_URL;
+    }
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+    }
+    if (typeof window !== 'undefined') {
+        const isLocalhost =
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.startsWith('192.168.') ||
+            window.location.hostname.startsWith('10.');
+        if (isLocalhost) {
+            return `${window.location.protocol}//${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT || 5002}`;
+        }
+        return window.location.origin;
+    }
+    return 'http://localhost:5002';
+};
+
+const SERVER_URL = getServerUrl();
 
 export const SocketProvider = ({ children }) => {
     const { user, accessToken } = useAuth();
