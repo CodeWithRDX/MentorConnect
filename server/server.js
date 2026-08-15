@@ -85,13 +85,18 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
+    
     const isAllowed = allowedOrigins.some(allowed => 
       origin === allowed || (process.env.NODE_ENV !== 'production' && origin.startsWith(allowed))
     );
-    if (isAllowed) {
+    
+    // Dynamically allow Vercel subdomains (including preview URLs)
+    const isVercelOrigin = origin.endsWith('.vercel.app') || origin === process.env.FRONTEND_URL;
+
+    if (isAllowed || isVercelOrigin) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false); // Let the browser handle the CORS block, don't crash the server
     }
   },
   credentials: true,
