@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Menu, X, User, LogOut, LayoutDashboard, ChevronDown, AlertTriangle, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import NotificationDropdown from './NotificationDropdown';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -86,6 +87,7 @@ const Navbar = () => {
                     </Button>
                   </Link>
                 )}
+                <NotificationDropdown />
                 <div className="relative group">
                   <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
                     <User className="h-5 w-5 text-neutral-600 dark:text-neutral-200" />
@@ -212,10 +214,16 @@ const Navbar = () => {
                     </Link>
                   )}
 
-                  <div className="flex items-center space-x-2 py-2">
-                    <User className="h-5 w-5 text-neutral-600" />
-                    <span className="text-sm text-neutral-700">{user.name}</span>
-                  </div>
+                  <Link
+                    to="/profile/edit"
+                    className="block"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Button variant="ghost" size="sm" className="w-full justify-start">
+                      <User className="h-4 w-4 mr-2" />
+                      Edit Profile ({user.name})
+                    </Button>
+                  </Link>
                   <Button
                     variant="ghost"
                     size="sm"

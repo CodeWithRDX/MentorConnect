@@ -8,6 +8,7 @@ import Footer from '../components/Footer';
 import GetStartedModal from '../components/GetStartedModal';
 import { ArrowRight, Users, BookOpen, Award, Star, CheckCircle, DollarSign } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import HeroImage from '../assets/mentorship_hero.png';
 
 const Home = () => {
@@ -67,7 +68,7 @@ const Home = () => {
         const res = await api.get('/mentors/top?limit=6');
         setBestMentors(res.data?.data || []);
       } catch (error) {
-        console.error('Error fetching top mentors:', error);
+        logger.error('Error fetching top mentors', error);
       } finally {
         setMentorsLoading(false);
       }

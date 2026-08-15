@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback } f
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
+import { useNotifications } from './NotificationContext';
+import logger from '../utils/logger';
 
 const CallContext = createContext(null);
 
@@ -17,8 +19,9 @@ const generateUUID = () => {
 };
 
 export const CallProvider = ({ children }) => {
-  const { socket } = useSocket();
+  const { socket, registerSession, unregisterSession } = useSocket();
   const { user } = useAuth();
+  const { setIncomingCallHandler } = useNotifications();
   const navigate = useNavigate();
 
   const [incomingCall, setIncomingCall] = useState(null);  // { from, name, roomId, offer }
@@ -37,6 +40,16 @@ export const CallProvider = ({ children }) => {
 
   const ringtoneRef = useRef(null);
 
+  // Keep socket active while in a call
+  useEffect(() => {
+    if (activeCall || callStatus !== 'idle') {
+      registerSession();
+      return () => {
+        unregisterSession();
+      };
+    }
+  }, [activeCall, callStatus, registerSession, unregisterSession]);
+
   // Helper to update activeCall state and persist to sessionStorage
   const updateActiveCall = useCallback((callData) => {
     setActiveCall(callData);
@@ -47,7 +60,7 @@ export const CallProvider = ({ children }) => {
         sessionStorage.removeItem('activeCall');
       }
     } catch (e) {
-      console.warn('Failed to update call session storage', e);
+      logger.warn('Failed to update call session storage', e);
     }
   }, []);
 
@@ -71,16 +84,23 @@ export const CallProvider = ({ children }) => {
     } catch {}
   }, []);
 
+  // Incoming call handler (shared by Socket and SSE)
+  const handleIncomingCall = useCallback(({ from, name, roomId, offer }) => {
+    setIncomingCall({ from, name, roomId, offer });
+    setCallStatus('ringing');
+    playRingtone();
+  }, [playRingtone]);
+
+  // Register SSE call handler
+  useEffect(() => {
+    if (setIncomingCallHandler) {
+      setIncomingCallHandler(handleIncomingCall);
+    }
+  }, [setIncomingCallHandler, handleIncomingCall]);
+
   // ── Socket event listeners ──────────────────────────────────────────────────
   useEffect(() => {
     if (!socket || !user) return;
-
-    // Incoming call from another user
-    const handleIncomingCall = ({ from, name, roomId, offer }) => {
-      setIncomingCall({ from, name, roomId, offer });
-      setCallStatus('ringing');
-      playRingtone();
-    };
 
     // Remote side ended the call
     const handleCallEnd = ({ from, roomId, reason }) => {
@@ -110,7 +130,7 @@ export const CallProvider = ({ children }) => {
       socket.off('call:end',      handleCallEnd);
       socket.off('call:rejected', handleCallRejected);
     };
-  }, [socket, user, playRingtone, stopRingtone, updateActiveCall]);
+  }, [socket, user, handleIncomingCall, stopRingtone, updateActiveCall]);
 
   // ── Accept incoming call ────────────────────────────────────────────────────
   const acceptCall = useCallback(() => {
@@ -135,7 +155,7 @@ export const CallProvider = ({ children }) => {
   // ── Start an outgoing call ──────────────────────────────────────────────────
   const startCall = useCallback((peerId, peerName, bookingId) => {
     const roomId = generateUUID();
-    console.log(`[CallContext] Starting outgoing call to ${peerName} (ID: ${peerId}) with client roomId: ${roomId}`);
+    logger.info(`[CallContext] Starting outgoing call to ${peerName} (ID: ${peerId}) with client roomId: ${roomId}`);
     updateActiveCall({ roomId, peerId, peerName, role: 'caller', bookingId });
     setCallStatus('connecting');
     navigate(`/call/${roomId}`);

@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Search, Filter } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 
 const Mentors = () => {
@@ -44,7 +45,7 @@ const Mentors = () => {
       const response = await api.get(`/mentors?${params.toString()}`);
       setMentors(response.data.data);
     } catch (error) {
-      console.error('Error fetching mentors:', error);
+      logger.error('Error fetching mentors', error);
     } finally {
       setLoading(false);
     }

@@ -13,10 +13,17 @@ const api = axios.create({
   },
 });
 
-let accessToken = '';
+let accessToken = typeof window !== 'undefined' ? (localStorage.getItem('token') || '') : '';
 
 export const setAccessToken = (token) => {
-  accessToken = token;
+  accessToken = token || '';
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+    }
+  }
 };
 
 export const getAccessToken = () => {

@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Search, Trash2, Eye, Database } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { toast } from '../components/ui/toaster';
 
 const DatabaseViewer = () => {
@@ -38,7 +39,7 @@ const DatabaseViewer = () => {
       }
       setData(response.data.data || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data', error);
       toast('Error fetching data', 'error');
     } finally {
       setLoading(false);

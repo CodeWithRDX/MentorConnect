@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useSocket } from '../context/SocketContext';
+import { useActiveCommunication } from '../context/SocketContext';
+import logger from '../utils/logger';
 
 // ICE servers config — free Google STUN + optional TURN from env
 const getIceServers = () => {
@@ -31,8 +32,7 @@ const getIceServers = () => {
  * @param {Object} params.initialOffer — SDP offer (for callee only)
  */
 const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
-  const { socket } = useSocket();
-  console.log(`[useWebRTC] Rendered hook with params: roomId=${roomId}, peerId=${peerId}, role=${role}, hasSocket=${!!socket}, hasInitialOffer=${!!initialOffer}`);
+  const { socket } = useActiveCommunication();
 
   const [localStream,  setLocalStream]  = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -64,18 +64,16 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
     };
 
     peer.ontrack = (event) => {
-      console.log('[useWebRTC] Received remote track:', event.track.kind, 'with stream ID:', event.streams?.[0]?.id);
+      logger.debug('[useWebRTC] Received remote track:', event.track.kind);
       
       const track = event.track;
 
       track.onmute = () => {
-        console.log(`[useWebRTC] Remote track muted: ${track.kind}`);
         if (track.kind === 'video') setIsRemoteCameraOff(true);
         if (track.kind === 'audio') setIsRemoteMuted(true);
       };
 
       track.onunmute = () => {
-        console.log(`[useWebRTC] Remote track unmuted: ${track.kind}`);
         if (track.kind === 'video') setIsRemoteCameraOff(false);
         if (track.kind === 'audio') setIsRemoteMuted(false);
       };
@@ -137,10 +135,11 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
 
   // ── Add queued ICE candidates ────────────────────────────────────────────────
   const drainIceQueue = useCallback(async (peer) => {
-    console.log(`[useWebRTC] Draining ${iceCandidateQueue.current.length} queued ICE candidates`);
     for (const candidate of iceCandidateQueue.current) {
-      try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {
-        console.error('[useWebRTC] Error adding queued ICE candidate:', err);
+      try {
+        await peer.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        logger.error('[useWebRTC] Error adding queued ICE candidate', err);
       }
     }
     iceCandidateQueue.current = [];
@@ -149,77 +148,61 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
   // ── Initialize as CALLER ────────────────────────────────────────────────────
   const initAsCaller = useCallback(async () => {
     if (isSetupDone.current) {
-      console.log('[useWebRTC] initAsCaller skipped — setup already done');
       return;
     }
-    console.log(`[useWebRTC] initAsCaller starting... peerId: ${peerId}, roomId: ${roomId}`);
     isSetupDone.current = true;
 
     try {
       const stream = await getLocalMedia();
-      console.log('[useWebRTC] Caller local media stream obtained');
       const peer = createPeer();
       peerRef.current = peer;
 
       stream.getTracks().forEach(track => {
-        console.log(`[useWebRTC] Adding track to peer connection: ${track.kind}`);
         peer.addTrack(track, stream);
       });
 
       const offer = await peer.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-      console.log('[useWebRTC] Local offer created');
       await peer.setLocalDescription(offer);
-      console.log('[useWebRTC] Local description set to offer');
 
-      console.log(`[useWebRTC] Emitting call:initiate to peer ${peerId}`);
       socket.emit('call:initiate', { to: peerId, offer: peer.localDescription, roomId }, (res) => {
-        console.log('[useWebRTC] call:initiate acknowledgment response:', res);
         if (!res?.success) {
           setPermissionError(res?.error || 'Failed to initiate call');
         }
       });
     } catch (err) {
-      console.error('[useWebRTC] Error in initAsCaller:', err);
+      logger.error('[useWebRTC] Error in initAsCaller', err);
     }
   }, [getLocalMedia, createPeer, socket, peerId, roomId]);
 
   // ── Initialize as CALLEE ────────────────────────────────────────────────────
   const initAsCallee = useCallback(async () => {
     if (isSetupDone.current) {
-      console.log('[useWebRTC] initAsCallee skipped — setup already done');
       return;
     }
     if (!initialOffer) {
-      console.warn('[useWebRTC] initAsCallee aborted — missing initialOffer');
+      logger.warn('[useWebRTC] initAsCallee aborted — missing initialOffer');
       return;
     }
-    console.log(`[useWebRTC] initAsCallee starting... peerId: ${peerId}, roomId: ${roomId}`);
     isSetupDone.current = true;
 
     try {
       const stream = await getLocalMedia();
-      console.log('[useWebRTC] Callee local media stream obtained');
       const peer = createPeer();
       peerRef.current = peer;
 
       stream.getTracks().forEach(track => {
-        console.log(`[useWebRTC] Adding track to peer connection: ${track.kind}`);
         peer.addTrack(track, stream);
       });
 
-      console.log('[useWebRTC] Setting remote description from initialOffer');
       await peer.setRemoteDescription(new RTCSessionDescription(initialOffer));
       await drainIceQueue(peer);
 
       const answer = await peer.createAnswer();
-      console.log('[useWebRTC] Callee local answer created');
       await peer.setLocalDescription(answer);
-      console.log('[useWebRTC] Callee local description set to answer');
 
-      console.log(`[useWebRTC] Emitting call:answer to peer ${peerId}`);
       socket.emit('call:answer', { to: peerId, answer: peer.localDescription, roomId });
     } catch (err) {
-      console.error('[useWebRTC] Error in initAsCallee:', err);
+      logger.error('[useWebRTC] Error in initAsCallee', err);
     }
   }, [getLocalMedia, createPeer, initialOffer, drainIceQueue, socket, peerId, roomId]);
 
@@ -228,17 +211,15 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
     if (!socket) return;
 
     const handleAnswer = async ({ answer, roomId: inRoomId }) => {
-      console.log(`[useWebRTC] Received call:answer for room ${inRoomId}`);
       if (inRoomId !== roomId || !peerRef.current) {
-        console.warn(`[useWebRTC] Ignoring call:answer (room ID mismatch or peer not created yet)`);
+        logger.warn('[useWebRTC] Ignoring call:answer (room ID mismatch or peer not created yet)');
         return;
       }
       try {
-        console.log('[useWebRTC] Setting remote description on caller from answer');
         await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         await drainIceQueue(peerRef.current);
       } catch (err) {
-        console.error('[useWebRTC] Error handling call:answer:', err);
+        logger.error('[useWebRTC] Error handling call:answer', err);
       }
     };
 
@@ -251,18 +232,15 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
     if (!socket) return;
 
     const handleIce = async ({ candidate, roomId: inRoomId }) => {
-      console.log(`[useWebRTC] Received call:ice-candidate for room ${inRoomId}`);
       if (inRoomId !== roomId) return;
       const peer = peerRef.current;
       if (peer && peer.remoteDescription) {
         try {
-          console.log('[useWebRTC] Adding remote ICE candidate');
           await peer.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-          console.error('[useWebRTC] Error adding ICE candidate:', err);
+          logger.error('[useWebRTC] Error adding ICE candidate', err);
         }
       } else {
-        console.log('[useWebRTC] Remote description not set yet, queuing ICE candidate');
         iceCandidateQueue.current.push(candidate);
       }
     };
@@ -276,7 +254,6 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
     if (!socket) return;
 
     const handleRemoteScreenShare = () => {
-      console.log('[useWebRTC] Remote peer screen share status changed — rebuilding stream with delay');
       setTimeout(() => {
         if (peerRef.current) {
           const remoteTracks = peerRef.current.getReceivers().map(r => r.track).filter(Boolean);
@@ -301,7 +278,6 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
     if (!socket) return;
 
     const handleCameraToggle = ({ enabled }) => {
-      console.log(`[useWebRTC] Remote camera toggle received: enabled=${enabled}`);
       setIsRemoteCameraOff(!enabled);
     };
 
@@ -314,7 +290,6 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
     if (!socket) return;
 
     const handleMicToggle = ({ enabled }) => {
-      console.log(`[useWebRTC] Remote mic toggle received: enabled=${enabled}`);
       setIsRemoteMuted(!enabled);
     };
 
@@ -332,20 +307,13 @@ const useWebRTC = ({ roomId, peerId, role, initialOffer }) => {
   // ── Cleanup on unmount ──────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      console.log('[useWebRTC] Cleanup hook running...');
       if (localStreamRef.current) {
-        console.log(`[useWebRTC] Stopping ${localStreamRef.current.getTracks().length} local tracks`);
-        localStreamRef.current.getTracks().forEach(t => {
-          t.stop();
-          console.log(`[useWebRTC] Stopped track: ${t.kind}`);
-        });
+        localStreamRef.current.getTracks().forEach(t => t.stop());
       }
       if (screenStreamRef.current) {
-        console.log(`[useWebRTC] Stopping ${screenStreamRef.current.getTracks().length} screen tracks`);
         screenStreamRef.current.getTracks().forEach(t => t.stop());
       }
       if (peerRef.current) {
-        console.log('[useWebRTC] Closing RTCPeerConnection');
         peerRef.current.close();
       }
       isSetupDone.current = false;

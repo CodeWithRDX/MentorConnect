@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useSocket } from '../context/SocketContext';
+import { useActiveCommunication } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 
@@ -10,7 +10,7 @@ const STROKE_SIZES = [2, 5, 10, 20];
 const Whiteboard = () => {
   const { roomId } = useParams();
   const navigate   = useNavigate();
-  const { socket } = useSocket();
+  const { socket } = useActiveCommunication();
   const { user }   = useAuth();
 
   const canvasRef = useRef(null);

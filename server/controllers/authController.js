@@ -9,11 +9,12 @@ const sendTokenResponse = (user, statusCode, res, message) => {
   const token = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
+  const isProd = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     expires: new Date(Date.now() + (parseInt(process.env.COOKIE_EXPIRE, 10) || 7) * 24 * 60 * 60 * 1000),
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
   };
 
@@ -40,6 +41,7 @@ const sendTokenResponse = (user, statusCode, res, message) => {
         oauthProviders: (user.oauthProviders || []).map(p => ({ provider: p.provider })),
       },
       token,
+      refreshToken,
     },
   });
 };
@@ -194,10 +196,11 @@ export const login = async (req, res, next) => {
 // @route   POST /api/auth/logout
 // @access  Private
 export const logout = async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production';
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
   });
 
@@ -209,7 +212,10 @@ export const logout = async (req, res) => {
 // @access  Public
 export const refresh = async (req, res, next) => {
   try {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken =
+      req.cookies?.refreshToken ||
+      req.signedCookies?.refreshToken ||
+      req.body?.refreshToken;
 
     if (!refreshToken) {
       return res.status(401).json({
@@ -240,14 +246,27 @@ export const refresh = async (req, res, next) => {
       });
     }
 
-    // Generate new access token
+    // Generate new tokens
     const token = user.generateAccessToken();
+    const newRefreshToken = user.generateRefreshToken();
+
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      expires: new Date(Date.now() + (parseInt(process.env.COOKIE_EXPIRE, 10) || 7) * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+    };
+
+    res.cookie('refreshToken', newRefreshToken, cookieOptions);
 
     res.status(200).json({
       success: true,
       message: 'Token refreshed successfully',
       data: {
         token,
+        refreshToken: newRefreshToken,
         user: {
           _id: user._id,
           id:  user._id,

@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import Textarea from '../components/ui/textarea.jsx';
 import { toast } from '../components/ui/toaster';
 import api from '../utils/api';
+import logger from '../utils/logger';
 
 const IssueReport = () => {
   const [form, setForm] = useState({
@@ -33,7 +34,7 @@ const IssueReport = () => {
       toast('Issue submitted. We will review it soon.', 'success');
       setForm({ title: '', description: '', type: 'technical', priority: 'medium' });
     } catch (error) {
-      console.error('Issue submit error:', error);
+      logger.error('Issue submit error', error);
       toast(error.response?.data?.message || 'Failed to submit issue', 'error');
     } finally {
       setLoading(false);

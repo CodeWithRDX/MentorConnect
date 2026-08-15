@@ -8,6 +8,7 @@ import Footer from '../components/Footer';
 import { toast } from '../components/ui/toaster';
 import { motion } from 'framer-motion';
 import { ArrowRight, Shield } from 'lucide-react';
+import logger from '../utils/logger';
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -49,7 +50,7 @@ const AdminLogin = () => {
       navigate('/admin/dashboard');
 
     } catch (error) {
-      console.error('Admin login error:', error);
+      logger.error('Admin login error', error);
       const errorMsg = error.response?.data?.message || 'Login failed';
       setError(errorMsg);
       toast(errorMsg, 'error');

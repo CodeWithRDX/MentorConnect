@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Calendar, TrendingUp, Users, Star, MessageSquare } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { toast } from '../components/ui/toaster';
@@ -37,7 +38,7 @@ const MenteeDashboard = () => {
       const res = await api.get('/issues');
       setIssues(res.data.data || []);
     } catch (error) {
-      console.error('Fetch issues error', error);
+      logger.error('Fetch issues error', error);
     }
   };
 
@@ -49,7 +50,7 @@ const MenteeDashboard = () => {
       setBookings(prev => prev.filter(b => b._id !== id));
       toast('Booking cancelled and removed', 'info');
     } catch (error) {
-      console.error('Cancel error', error);
+      logger.error('Cancel error', error);
       toast('Failed to cancel booking', 'error');
     }
   };
@@ -79,7 +80,7 @@ const MenteeDashboard = () => {
         averageRating: 4.9,
       });
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      logger.error('Error fetching bookings', error);
     } finally {
       setLoading(false);
     }

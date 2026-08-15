@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Calendar, Users, MessageSquare, TrendingUp, DollarSign } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { toast } from '../components/ui/toaster';
@@ -83,7 +84,7 @@ const MentorDashboard = () => {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Error loading mentor data:', error);
+        logger.error('Error loading mentor data', error);
         isMounted && setLoading(false);
       }
     };
@@ -118,7 +119,7 @@ const MentorDashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      logger.error('Error fetching bookings', error);
     } finally {
       if (isMountedRef.current) {
         setLoading(false);
@@ -242,7 +243,7 @@ const MentorDashboard = () => {
 
       toast('Resource saved', 'success');
     } catch (error) {
-      console.error('Error saving resource', error);
+      logger.error('Error saving resource', error);
       toast(error.response?.data?.message || 'Failed to save resource', 'error');
     } finally {
       setActionLoading(false);

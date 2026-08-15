@@ -5,6 +5,7 @@ import Message from '../models/Message.js';
 import Booking from '../models/Booking.js';
 import CallSession from '../models/CallSession.js';
 import { v4 as uuidv4 } from 'uuid';
+import sseService from '../services/sseService.js';
 
 // Map of userId -> Set of socketIds (a user can have multiple tabs open)
 const onlineUsers = new Map();
@@ -83,6 +84,21 @@ const initSocket = (httpServer) => {
 
                 socket.to(to).emit('new_message', payload);
                 socket.to(userId).emit('new_message', payload);
+
+                // Also notify via SSE for background toast/badge if receiver isn't in chat room
+                const senderRole = socket.user.role === 'mentor' ? 'mentor' : 'mentee';
+                const targetLink = senderRole === 'mentor' ? '/mentee/messages' : '/mentor/messages';
+
+                sseService.createAndSendNotification({
+                    recipient: to,
+                    sender: userId,
+                    type: 'message',
+                    title: `New message from ${socket.user.name}`,
+                    message: body.trim().length > 60 ? `${body.trim().substring(0, 60)}...` : body.trim(),
+                    link: targetLink,
+                    metadata: { messageId: message._id, from: userId },
+                });
+
                 ack?.({ success: true, data: payload });
             } catch (err) {
                 ack?.({ success: false, error: 'Failed to save message' });
@@ -101,11 +117,6 @@ const initSocket = (httpServer) => {
             try {
                 if (!to || !offer) {
                     return ack?.({ success: false, error: 'Recipient and offer are required' });
-                }
-
-                // Check if target is online
-                if (!onlineUsers.has(to)) {
-                    return ack?.({ success: false, error: 'User is not online' });
                 }
 
                 // Validate that caller and callee belong to this booking
@@ -147,13 +158,16 @@ const initSocket = (httpServer) => {
 
                 activeCalls.set(finalRoomId, { caller: userId, callee: to, sessionId: session._id });
 
-                // Forward call invitation to callee
-                socket.to(to).emit('call:incoming', {
+                const callPayload = {
                     from:   userId,
                     name:   socket.user.name,
                     roomId: finalRoomId,
                     offer,
-                });
+                };
+
+                // Forward call invitation to callee via Socket & SSE
+                socket.to(to).emit('call:incoming', callPayload);
+                sseService.sendToUser(to, 'call:incoming', callPayload);
 
                 ack?.({ success: true, roomId: finalRoomId });
             } catch (err) {

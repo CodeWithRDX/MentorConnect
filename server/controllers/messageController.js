@@ -1,5 +1,6 @@
 import Message from '../models/Message.js';
 import User from '../models/User.js';
+import sseService from '../services/sseService.js';
 
 // @desc    Send a message (simple one-to-one chat)
 // @route   POST /api/messages
@@ -19,6 +20,21 @@ export const sendMessage = async (req, res, next) => {
       from: req.user.id,
       to,
       body: body.trim(),
+    });
+
+    // Send real-time SSE notification to recipient
+    const sender = await User.findById(req.user.id).select('name role');
+    const senderRole = sender?.role === 'mentor' ? 'mentor' : 'mentee';
+    const targetLink = senderRole === 'mentor' ? '/mentee/messages' : '/mentor/messages';
+
+    sseService.createAndSendNotification({
+      recipient: to,
+      sender: req.user.id,
+      type: 'message',
+      title: `New message from ${sender?.name || 'User'}`,
+      message: body.trim().length > 60 ? `${body.trim().substring(0, 60)}...` : body.trim(),
+      link: targetLink,
+      metadata: { messageId: message._id, from: req.user.id },
     });
 
     res.status(201).json({

@@ -3,6 +3,7 @@ import Mentor from '../models/Mentor.js';
 import User from '../models/User.js';
 import CallSession from '../models/CallSession.js';
 import sendEmail from '../utils/sendEmail.js';
+import sseService from '../services/sseService.js';
 
 // @desc    Create booking
 // @route   POST /api/bookings
@@ -91,10 +92,22 @@ export const createBooking = async (req, res, next) => {
       notes,
     });
 
-    // Send email to mentor
+    // Send real-time SSE notification & email to mentor
     try {
       const mentorUser = await User.findById(mentorDoc.user);
       const menteeUser = await User.findById(req.user.id);
+
+      if (mentorDoc.user) {
+        sseService.createAndSendNotification({
+          recipient: mentorDoc.user,
+          sender: req.user.id,
+          type: 'booking',
+          title: 'New Mentorship Booking Request',
+          message: `${menteeUser?.name || 'A mentee'} booked a ${effectiveDuration}-min session for ${new Date(sessionDate).toLocaleDateString()}.`,
+          link: '/mentor/dashboard',
+          metadata: { bookingId: booking._id },
+        });
+      }
 
       await sendEmail({
         email: mentorUser.email,
@@ -108,7 +121,7 @@ export const createBooking = async (req, res, next) => {
             `,
       });
     } catch (err) {
-      console.error('Email sending failed', err);
+      console.error('Notification / Email error on booking creation', err);
     }
 
     res.status(201).json({

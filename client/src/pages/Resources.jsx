@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { BookOpen, ExternalLink, ArrowLeft, Filter } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 
 const Resources = () => {
@@ -18,25 +19,18 @@ const Resources = () => {
   const [mentors, setMentors] = useState([]);
 
   useEffect(() => {
-    if (user) {
-      fetchResources();
-    }
-  }, [user]);
+    fetchResources();
+  }, []);
 
   const fetchResources = async () => {
     try {
-      // Get all bookings to find mentors
-      const userId = user._id || user.id;
-      const bookingsRes = await api.get(`/bookings/user/${userId}`);
-      const bookings = bookingsRes.data.data || [];
-
-      // Get unique mentor IDs
-      const mentorIds = [...new Set(bookings.map(b => b.mentor?._id).filter(Boolean))];
-
-      // Fetch each mentor's profile to get resources
-      const mentorPromises = mentorIds.map(id => api.get(`/mentors/${id}`));
-      const mentorResponses = await Promise.all(mentorPromises);
+      // First get all mentors to get their resources
+      const mentorsRes = await api.get('/mentors');
+      const mentorList = mentorsRes.data.data;
       
+      // Fetch full profile for each mentor to get resources
+      const mentorPromises = mentorList.map(m => api.get(`/mentors/${m._id}`));
+      const mentorResponses = await Promise.all(mentorPromises);
       const allMentors = mentorResponses.map(res => res.data.data);
       setMentors(allMentors);
 
@@ -57,7 +51,7 @@ const Resources = () => {
 
       setResources(allResources);
     } catch (error) {
-      console.error('Error fetching resources:', error);
+      logger.error('Error fetching resources', error);
     } finally {
       setLoading(false);
     }

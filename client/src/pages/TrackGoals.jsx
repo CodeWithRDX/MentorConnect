@@ -9,6 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Target, Plus, ArrowLeft, Trash2, Edit2, Check } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/ui/toaster';
 
@@ -18,15 +19,16 @@ const TrackGoals = () => {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [editingGoal, setEditingGoal] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'learning',
-    priority: 'medium',
+    category: 'skill_acquisition',
     targetDate: '',
-    progress: 0,
+    actionItems: [],
   });
+  const [newActionItem, setNewActionItem] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     if (user) {
@@ -39,7 +41,7 @@ const TrackGoals = () => {
       const response = await api.get('/goals');
       setGoals(response.data.data || []);
     } catch (error) {
-      console.error('Error fetching goals:', error);
+      logger.error('Error fetching goals', error);
     } finally {
       setLoading(false);
     }

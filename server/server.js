@@ -22,6 +22,7 @@ import messageRoutes from './routes/messageRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import noteRoutes from './routes/noteRoutes.js';
 import permissionRoutes from './routes/permissionRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 // Load env vars first
 dotenv.config();
@@ -122,6 +123,7 @@ app.use('/api/messages',    messageRoutes);
 app.use('/api/contact',     contactRoutes);
 app.use('/api/notes',       noteRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

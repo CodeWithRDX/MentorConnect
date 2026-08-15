@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useCall } from '../context/CallContext';
 import { useAuth } from '../context/AuthContext';
 import useWebRTC from '../hooks/useWebRTC';
+import logger from '../utils/logger';
 
 const VideoCall = () => {
   const { roomId } = useParams();
@@ -44,7 +45,7 @@ const VideoCall = () => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
       localVideoRef.current.play().catch(err => {
-        console.warn('[VideoCall] Autoplay local stream blocked or failed:', err);
+        logger.warn('[VideoCall] Autoplay local stream blocked or failed', err);
       });
     }
   }, [localStream]);
@@ -53,7 +54,7 @@ const VideoCall = () => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.play().catch(err => {
-        console.warn('[VideoCall] Autoplay remote stream blocked or failed:', err);
+        logger.warn('[VideoCall] Autoplay remote stream blocked or failed', err);
       });
     }
   }, [remoteStream]);

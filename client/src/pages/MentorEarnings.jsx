@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Calendar, TrendingUp, ArrowLeft } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -29,7 +30,7 @@ const MentorEarnings = () => {
         const res = await api.get(`/bookings/mentor/${mentorProfileId}`);
         setBookings(res.data?.data || []);
       } catch (error) {
-        console.error('Error loading earnings bookings:', error);
+        logger.error('Error loading earnings bookings', error);
       } finally {
         setLoading(false);
       }

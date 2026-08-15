@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Star, DollarSign, Clock, Calendar, CheckCircle } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/ui/toaster';
 
@@ -33,7 +34,7 @@ const MentorDetail = () => {
       const response = await api.get(`/mentors/${id}`);
       setMentor(response.data.data);
     } catch (error) {
-      console.error('Error fetching mentor:', error);
+      logger.error('Error fetching mentor', error);
       toast('Failed to load mentor details', 'error');
     } finally {
       setLoading(false);

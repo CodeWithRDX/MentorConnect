@@ -8,8 +8,9 @@ import { Button } from '../components/ui/button';
 import { toast } from '../components/ui/toaster';
 import { Send, Wifi, WifiOff } from 'lucide-react';
 import api from '../utils/api';
+import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../context/SocketContext';
+import { useActiveCommunication } from '../context/SocketContext';
 
 const OnlineDot = ({ online }) => (
   <span
@@ -21,7 +22,7 @@ const OnlineDot = ({ online }) => (
 const MentorMessages = () => {
   const location = useLocation();
   const { user } = useAuth();
-  const { socket, onlineUsers } = useSocket();
+  const { socket, onlineUsers } = useActiveCommunication();
   const menteeFromQuery = new URLSearchParams(location.search).get('mentee');
 
   const [contacts, setContacts] = useState([]);
@@ -65,7 +66,7 @@ const MentorMessages = () => {
                 initialActiveId = menteeFromQuery;
               }
             } catch (e) {
-              console.error('Failed to fetch mentee details', e);
+              logger.error('Failed to fetch mentee details', e);
             }
           }
         } else if (allContacts.length > 0) {
@@ -75,7 +76,7 @@ const MentorMessages = () => {
         setContacts(allContacts);
         if (initialActiveId) setActiveMenteeId(initialActiveId);
       } catch (error) {
-        console.error('Fetch contacts error', error);
+        logger.error('Fetch contacts error', error);
       } finally {
         setLoadingContacts(false);
       }
@@ -94,7 +95,7 @@ const MentorMessages = () => {
         const res = await api.get(`/messages/conversation/${activeMenteeId}`);
         setMessages(res.data?.data || []);
       } catch (error) {
-        console.error('Fetch messages error', error);
+        logger.error('Fetch messages error', error);
       } finally {
         setLoadingMessages(false);
       }

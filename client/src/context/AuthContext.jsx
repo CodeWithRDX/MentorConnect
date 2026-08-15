@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import api, { setAccessToken as setApiAccessToken } from '../utils/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -13,64 +13,108 @@ export const useAuth = () => {
 
 const getCachedUser = () => {
   try {
-    return JSON.parse(localStorage.getItem('user') || 'null');
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 };
 
+const getCachedToken = () => {
+  try {
+    return localStorage.getItem('token') || '';
+  } catch {
+    return '';
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(getCachedUser());
-  const [accessToken, setAccessTokenState] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(getCachedUser);
+  const [accessToken, setAccessTokenState] = useState(getCachedToken);
+  const [loading, setLoading] = useState(() => !getCachedUser());
   const hasCheckedAuth = useRef(false);
 
-  const setAccessToken = (token) => {
-    setAccessTokenState(token);
-    setApiAccessToken(token);
-  };
+  const setAccessToken = useCallback((token) => {
+    setAccessTokenState(token || '');
+    setApiAccessToken(token || '');
+    if (token) {
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+    }
+  }, []);
+
+  const saveUserSession = useCallback((userData, token, refreshToken) => {
+    if (token) setAccessToken(token);
+    if (userData) {
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+    }
+  }, [setAccessToken]);
+
+  // ── CHECK AUTH (Resilient Silent Refresh & Profile Verification) ────────────
+  const checkAuth = useCallback(async () => {
+    try {
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      const response = await api.post('/auth/refresh', {
+        refreshToken: storedRefreshToken || undefined,
+      });
+
+      const token = response.data?.data?.token;
+      const loggedUser = response.data?.data?.user;
+      const newRefreshToken = response.data?.data?.refreshToken;
+
+      if (token && loggedUser) {
+        saveUserSession(loggedUser, token, newRefreshToken);
+        return;
+      }
+    } catch {
+      // If cookie/refresh endpoint failed (e.g. cross-origin cookie restricted),
+      // verify if current access token in localStorage is still valid via /auth/me
+      const currentToken = localStorage.getItem('token');
+      if (currentToken) {
+        try {
+          const meRes = await api.get('/auth/me');
+          const verifiedUser = meRes.data?.data?.user;
+          if (verifiedUser) {
+            setUser(verifiedUser);
+            localStorage.setItem('user', JSON.stringify(verifiedUser));
+            return;
+          }
+        } catch {
+          // Token is genuinely expired
+        }
+      }
+
+      // Both refresh and token verification failed: clear session
+      setAccessToken('');
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+    } finally {
+      setLoading(false);
+    }
+  }, [saveUserSession, setAccessToken]);
 
   useEffect(() => {
     if (!hasCheckedAuth.current) {
       hasCheckedAuth.current = true;
       checkAuth();
     }
-  }, []);
-
-  // ── CHECK AUTH (Silent Refresh on Load) ─────────────────────────────────────
-  const checkAuth = async () => {
-    setLoading(true);
-    try {
-      const response = await api.post('/auth/refresh');
-      const token = response.data?.data?.token;
-      const loggedUser = response.data?.data?.user;
-
-      if (token && loggedUser) {
-        setAccessToken(token);
-        setUser(loggedUser);
-        localStorage.setItem('user', JSON.stringify(loggedUser));
-      } else {
-        throw new Error('Invalid refresh response');
-      }
-    } catch {
-      // Refresh failed or no refresh token cookie. Clear session metadata.
-      setAccessToken('');
-      setUser(null);
-      localStorage.removeItem('user');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [checkAuth]);
 
   // ── USER LOGIN (email + password) ───────────────────────────────────────────
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     const userData = response.data?.data?.user || response.data?.data;
-    const token    = response.data?.data?.token;
-    
-    if (token) setAccessToken(token);
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    const token = response.data?.data?.token;
+    const refreshToken = response.data?.data?.refreshToken;
+
+    saveUserSession(userData, token, refreshToken);
     return { user: userData, token };
   };
 
@@ -82,11 +126,10 @@ export const AuthProvider = ({ children }) => {
       _googleUserInfo: userInfo,
     });
     const userData = response.data?.data?.user;
-    const token    = response.data?.data?.token;
-    
-    if (token) setAccessToken(token);
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    const token = response.data?.data?.token;
+    const refreshToken = response.data?.data?.refreshToken;
+
+    saveUserSession(userData, token, refreshToken);
     return { user: userData, token };
   };
 
@@ -95,10 +138,9 @@ export const AuthProvider = ({ children }) => {
     const response = await api.post('/admin/login', { email, password });
     const userData = response.data.user;
     const token = response.data.token;
-    
-    if (token) setAccessToken(token);
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    const refreshToken = response.data.refreshToken;
+
+    saveUserSession(userData, token, refreshToken);
     return response;
   };
 
@@ -118,6 +160,8 @@ export const AuthProvider = ({ children }) => {
       setAccessToken('');
       setUser(null);
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       window.location.href = '/';
     }
   };
@@ -136,3 +180,5 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthContext;
